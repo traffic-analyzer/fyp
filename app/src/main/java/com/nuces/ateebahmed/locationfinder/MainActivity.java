@@ -80,8 +80,6 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         if (existsInDatabase(dataSnapshot)) {
-                            /*Intent tracker = new Intent(MainActivity.this, Tracker.class);
-                            startActivity(tracker);*/
                             Intent maps = new Intent(MainActivity.this, MapsActivity.class);
                             startActivity(maps);
                             finish();
