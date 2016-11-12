@@ -2,9 +2,12 @@ package com.nuces.ateebahmed.locationfinder;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.IntentSender;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -21,6 +24,8 @@ import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListe
 import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.Geofence;
+import com.google.android.gms.location.GeofencingRequest;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
@@ -32,8 +37,13 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMap.OnMapClickListener;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.Circle;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+
+import java.util.ArrayList;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
         ConnectionCallbacks, OnConnectionFailedListener, LocationListener,
@@ -48,13 +58,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected static final int CHECK_SETTINGS = 0x1;
     private static final long UPDATE_INTERVAL = 30000;
     private static final long FASTEST_UPDATE = 5000;
+    protected ArrayList<Geofence> geofenceList;
+    private boolean geofenceAdded;
+    private PendingIntent geofencePendingIntent;
+    private SharedPreferences sharedPreferences;
+    private ResultCallback<Status> statusResult;
+    protected Marker marker;
+    protected Circle circle;
+
+    // Constants
+    private String packageName = "com.nuces.ateebahmed.locationfinder",
+            sharedPreferencesName = packageName + ".SHARED_PREFERENCES_NAME",
+            geofencesAddedKey = packageName + ".GEOFENCES_ADDED_KEY";
+    private long geofenceExpiration = 60 * 60 * 1000, geofenceRadius = 1000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
+        geofenceList = new ArrayList<>();
+        geofencePendingIntent = null;
+        sharedPreferences = getSharedPreferences(sharedPreferencesName, MODE_PRIVATE);
+        geofenceAdded = sharedPreferences.getBoolean(geofencesAddedKey, false);
+        statusResult = getStatusResult();
         locUpd = false;
+        marker = null;
+        circle = null;
         clientBuilder();
         createLocReq();
         createLocSettingReq();
@@ -66,11 +96,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
     }
 
+    // Google Play Services client initialized
     protected synchronized void clientBuilder() {
         gClient = new GoogleApiClient.Builder(this).addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this).addApi(LocationServices.API).build();
     }
 
+    // Creating a location request for detecting location providing parameters
     protected void createLocReq() {
         locReq = new LocationRequest();
         locReq.setInterval(UPDATE_INTERVAL);
@@ -102,7 +134,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        mMap.setIndoorEnabled(false);
 
         // Add a marker in Sydney and move the camera
         /*LatLng sydney = new LatLng(0, 0);
@@ -127,12 +158,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Log.e("MAPS", connectionResult.getErrorCode() + "");
     }
 
+    // Location detection service functions START HERE
     @Override
     public void onLocationChanged(Location location) {
         loc = location;
         LatLng pos = new LatLng(location.getLatitude(), location.getLongitude());
-        mMap.addMarker(new MarkerOptions().position(pos));
+        if (marker != null)
+            marker.remove();
+        if (circle != null)
+            circle.remove();
+        marker = mMap.addMarker(new MarkerOptions().position(pos));
+        circle = mMap.addCircle(new CircleOptions().center(pos).radius(geofenceRadius)
+                .strokeColor(Color.GREEN).fillColor(Color.alpha(0)));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(pos));
+        createGeofence();
+        addGeofence();
         Log.i("MAPS", "changed");
     }
 
@@ -145,6 +185,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onStop() {
         super.onStop();
+        removeGeofence();
         if (gClient.isConnected())
             gClient.disconnect();
     }
@@ -179,14 +220,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     protected void onPause() {
         super.onPause();
+        removeGeofence();
         stopLocUpds();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (gClient.isConnected() && locUpd)
+        if (gClient.isConnected() && locUpd) {
             startLocUpds();
+            addGeofence();
+        }
     }
 
     @Override
@@ -237,4 +281,76 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapClick(LatLng latLng) {
         startLocUpds();
     }
+    // Location detection service functions END HERE
+
+    // Geofencing code STARTS HERE
+    private GeofencingRequest getGeofencingRequest() {
+        GeofencingRequest.Builder b = new GeofencingRequest.Builder();
+        b.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER);
+        b.addGeofences(geofenceList);
+        return b.build();
+    }
+
+    private ResultCallback<Status> getStatusResult() {
+        return new ResultCallback<Status>() {
+            @Override
+            public void onResult(@NonNull Status status) {
+                if (status.isSuccess()) {
+                    geofenceAdded = !geofenceAdded;
+                    SharedPreferences.Editor editor = sharedPreferences.edit();
+                    editor.putBoolean(geofencesAddedKey, geofenceAdded);
+                    editor.apply();
+                    Toast.makeText(MapsActivity.this, geofenceAdded ? "Yes" : "No",
+                            Toast.LENGTH_SHORT).show();
+                } else {
+                    Log.e("MAPS", status.getStatusMessage());
+                }
+            }
+        };
+    }
+
+    private void addGeofence() {
+        if (!gClient.isConnected())
+            Toast.makeText(this, "Not connected", Toast.LENGTH_SHORT).show();
+        else {
+            try {
+                geofencePendingIntent = getGeofencePendingIntent();
+                LocationServices.GeofencingApi.addGeofences(gClient, getGeofencingRequest(),
+                        geofencePendingIntent).setResultCallback(statusResult);
+            } catch (SecurityException e) {
+                Log.e("MAPS", e.getMessage());
+            }
+        }
+    }
+
+    private void removeGeofence() {
+        if (!gClient.isConnected())
+            Toast.makeText(this, "Not connected", Toast.LENGTH_SHORT).show();
+        else {
+            try {
+                geofencePendingIntent = getGeofencePendingIntent();
+                LocationServices.GeofencingApi.removeGeofences(gClient, geofencePendingIntent)
+                        .setResultCallback(statusResult);
+            } catch (SecurityException e) {
+                Log.e("MAPS", e.getMessage());
+            }
+        }
+    }
+
+    private PendingIntent getGeofencePendingIntent() {
+        if (geofencePendingIntent != null)
+            return geofencePendingIntent;
+        Intent intent = new Intent(this, GeofenceIntentService.class);
+        return PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+    }
+
+    private void createGeofence() {
+        geofenceList.add(new Geofence.Builder().setRequestId("Test")
+                .setCircularRegion(loc.getLatitude(), loc.getLongitude(), geofenceRadius)
+                .setExpirationDuration(geofenceExpiration)
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER |
+                        Geofence.GEOFENCE_TRANSITION_EXIT).build());
+    }
+
+    // Geofencing code ENDS HERE
 }
