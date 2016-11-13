@@ -34,7 +34,6 @@ import com.google.android.gms.location.LocationSettingsResult;
 import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.GoogleMap.OnMapClickListener;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.Circle;
@@ -47,7 +46,7 @@ import java.util.ArrayList;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
         ConnectionCallbacks, OnConnectionFailedListener, LocationListener,
-        ResultCallback<LocationSettingsResult>, OnMapClickListener {
+        ResultCallback<LocationSettingsResult> {
 
     private GoogleMap mMap;
     protected GoogleApiClient gClient;
@@ -238,6 +237,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         final Status status = locationSettingsResult.getStatus();
         switch (status.getStatusCode()) {
             case LocationSettingsStatusCodes.SUCCESS:
+                if (!gClient.isConnected())
+                    gClient.connect();
                 startLocUpds();
                 Toast.makeText(this, "Getting your location", Toast.LENGTH_LONG).show();
                 break;
@@ -275,11 +276,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (grantResults[0] != PackageManager.PERMISSION_GRANTED)
                     Toast.makeText(this, "Enable location in Settings", Toast.LENGTH_LONG).show();
         }
-    }
-
-    @Override
-    public void onMapClick(LatLng latLng) {
-        startLocUpds();
     }
     // Location detection service functions END HERE
 

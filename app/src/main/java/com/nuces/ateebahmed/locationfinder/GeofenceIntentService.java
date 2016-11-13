@@ -65,9 +65,5 @@ public class GeofenceIntentService extends IntentService {
             trigger = t.getRequestId();
         return getTransitionString(transition) + " " + trigger;
     }
-
-    private void notifyDialog(String details) {
-        Toast.makeText(this, details, Toast.LENGTH_LONG).show();
-    }
 }
 
