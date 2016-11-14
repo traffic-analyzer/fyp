@@ -21,7 +21,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-public class MainActivity extends AppCompatActivity {
+public class SignInActivity extends AppCompatActivity {
 
     private TextView regLink;
     private EditText etUsername, etPassLogin;
@@ -48,7 +48,7 @@ public class MainActivity extends AppCompatActivity {
         ClickableSpan clickableSpan = new ClickableSpan() {
             @Override
             public void onClick(View widget) {
-                Intent register = new Intent(MainActivity.this, RegisterActivity.class);
+                Intent register = new Intent(SignInActivity.this, RegisterActivity.class);
                 startActivity(register);
             }
         };
@@ -80,11 +80,11 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         if (existsInDatabase(dataSnapshot)) {
-                            Intent maps = new Intent(MainActivity.this, MapsActivity.class);
+                            Intent maps = new Intent(SignInActivity.this, MapsActivity.class);
                             startActivity(maps);
                             finish();
                         }
-                        else Toast.makeText(MainActivity.this, "Invalid Username/Password",
+                        else Toast.makeText(SignInActivity.this, "Invalid Username/Password",
                                     Toast.LENGTH_SHORT).show();
                     }
 
