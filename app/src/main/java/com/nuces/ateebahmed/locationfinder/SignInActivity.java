@@ -28,11 +28,12 @@ public class SignInActivity extends AppCompatActivity {
     private Button btnLogin;
     private DatabaseReference dbRootRef, dbUsersRef;
     private TextWatcher fieldsEmpty;
+    private UserSession session;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_signin);
 
         dbRootRef = FirebaseDatabase.getInstance().getReference();
         dbUsersRef = dbRootRef.child("users");
@@ -73,6 +74,8 @@ public class SignInActivity extends AppCompatActivity {
         etPassLogin.addTextChangedListener(fieldsEmpty);
         etUsername.addTextChangedListener(fieldsEmpty);
 
+        session = new UserSession(getApplicationContext());
+
         btnLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -80,9 +83,7 @@ public class SignInActivity extends AppCompatActivity {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         if (existsInDatabase(dataSnapshot)) {
-                            Intent maps = new Intent(SignInActivity.this, MapsActivity.class);
-                            startActivity(maps);
-                            finish();
+                            startMapsActivity();
                         }
                         else Toast.makeText(SignInActivity.this, "Invalid Username/Password",
                                     Toast.LENGTH_SHORT).show();
@@ -110,6 +111,7 @@ public class SignInActivity extends AppCompatActivity {
                     if (keys.getKey().equals("username"))
                         if (keys.getValue().equals(etUsername.getText().toString())) {
                             result[0] = true;
+                            session.createSession(etUsername.getText().toString());
                         }
                     if (keys.getKey().equals("password"))
                         if (keys.getValue().equals(etPassLogin.getText().toString())) {
@@ -126,5 +128,11 @@ public class SignInActivity extends AppCompatActivity {
         if(etUsername.getText().toString().isEmpty() || etPassLogin.getText().toString().isEmpty())
             btnLogin.setEnabled(false);
         else btnLogin.setEnabled(true);
+    }
+
+    private void startMapsActivity() {
+        Intent maps = new Intent(SignInActivity.this, MapsActivity.class);
+        startActivity(maps);
+        finish();
     }
 }

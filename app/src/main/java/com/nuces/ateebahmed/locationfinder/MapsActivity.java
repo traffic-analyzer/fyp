@@ -69,12 +69,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private String packageName = "com.nuces.ateebahmed.locationfinder",
             sharedPreferencesName = packageName + ".SHARED_PREFERENCES_NAME",
             geofencesAddedKey = packageName + ".GEOFENCES_ADDED_KEY";
-    private long geofenceExpiration = 60 * 60 * 1000, geofenceRadius = 1000;
+    private long geofenceExpiration = 60 * 60 * 1000, geofenceRadius = 100;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
+        UserSession session = new UserSession(getApplicationContext());
+        if (!session.isLoggedIn()) {
+            startSignInActivity();
+        }
 
         geofenceList = new ArrayList<>();
         geofencePendingIntent = null;
@@ -349,4 +354,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     // Geofencing code ENDS HERE
+
+    private void startSignInActivity() {
+        Intent intent = new Intent(this, SignInActivity.class);
+        startActivity(intent);
+        finish();
+    }
 }
