@@ -3,6 +3,7 @@ package models;
 public class User {
 
     private String name, email, username, password;
+    private double latitude, longitude;
 
     public User() {
 
@@ -13,6 +14,16 @@ public class User {
         this.email = email;
         this.username = username;
         this.password = password;
+    }
+
+    public User(String name, String email, String username, String password, double latitude,
+                double longitude) {
+        this.name = name;
+        this.email = email;
+        this.username = username;
+        this.password = password;
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     public String getName() {
@@ -45,5 +56,21 @@ public class User {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
     }
 }

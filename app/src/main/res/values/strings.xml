@@ -27,4 +27,6 @@
         completions."
     </string>
     <string name="title_activity_maps">Map</string>
+    <string name="searchLocation">Search your Location</string>
+    <string name="btnGotoMarker">Go to my location</string>
 </resources>

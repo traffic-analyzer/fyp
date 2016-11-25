@@ -15,6 +15,8 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -41,8 +43,15 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+
+import models.User;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
         ConnectionCallbacks, OnConnectionFailedListener, LocationListener,
@@ -59,11 +68,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private static final long FASTEST_UPDATE = 5000;
     protected ArrayList<Geofence> geofenceList;
     private boolean geofenceAdded;
-    private PendingIntent geofencePendingIntent;
     private SharedPreferences sharedPreferences;
     private ResultCallback<Status> statusResult;
     protected Marker marker;
     protected Circle circle;
+    private UserSession session;
+    private DatabaseReference dbRootRef, dbUsersRef;
+    private Button btnSearchLocation, btnGotoMarker;
+    private ArrayList<Marker> userMarkers;
 
     // Constants
     private String packageName = "com.nuces.ateebahmed.locationfinder",
@@ -76,23 +88,44 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-        UserSession session = new UserSession(getApplicationContext());
+        btnSearchLocation = (Button) findViewById(R.id.btnSearchLocation);
+        btnGotoMarker = (Button) findViewById(R.id.btnGotoMarker);
+        btnGotoMarker.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                gotoMarker();
+            }
+        });
+
+        session = new UserSession(getApplicationContext());
         if (!session.isLoggedIn()) {
             startSignInActivity();
         }
 
         geofenceList = new ArrayList<>();
-        geofencePendingIntent = null;
+        userMarkers = new ArrayList<>();
         sharedPreferences = getSharedPreferences(sharedPreferencesName, MODE_PRIVATE);
         geofenceAdded = sharedPreferences.getBoolean(geofencesAddedKey, false);
         statusResult = getStatusResult();
         locUpd = false;
         marker = null;
         circle = null;
+        dbRootRef = FirebaseDatabase.getInstance().getReference();
+        dbUsersRef = dbRootRef.child("users");
         clientBuilder();
         createLocReq();
         createLocSettingReq();
         checkLocSettings();
+
+        btnSearchLocation.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (gClient.isConnected())
+                    startLocUpds();
+                if (locUpd)
+                    gotoMarker();
+            }
+        });
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
@@ -147,8 +180,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        if (locUpd)
-            startLocUpds();
         Log.i("MAPS", "connected");
     }
 
@@ -163,20 +194,18 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     // Location detection service functions START HERE
+
+
     @Override
     public void onLocationChanged(Location location) {
+
         loc = location;
         LatLng pos = new LatLng(location.getLatitude(), location.getLongitude());
-        if (marker != null)
-            marker.remove();
-        if (circle != null)
-            circle.remove();
-        marker = mMap.addMarker(new MarkerOptions().position(pos));
-        circle = mMap.addCircle(new CircleOptions().center(pos).radius(geofenceRadius)
-                .strokeColor(Color.GREEN).fillColor(Color.alpha(0)));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(pos));
-        createGeofence();
-        addGeofence();
+        onLocUpdate(pos);
+        if (geofenceList.size() > 0) {
+            geofenceList.remove(0);
+            removeGeofence();
+        }
         Log.i("MAPS", "changed");
     }
 
@@ -192,6 +221,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         removeGeofence();
         if (gClient.isConnected())
             gClient.disconnect();
+        userMarkers.clear();
     }
 
     private void startLocUpds() {
@@ -201,6 +231,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.INTERNET
             }, 1);
         } else {
+            Toast.makeText(this, "Getting your location", Toast.LENGTH_SHORT).show();
             LocationServices.FusedLocationApi.requestLocationUpdates(gClient, locReq, this)
                     .setResultCallback(new ResultCallback<Status>() {
                         @Override
@@ -226,15 +257,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onPause();
         removeGeofence();
         stopLocUpds();
+        userMarkers.clear();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if (gClient.isConnected() && locUpd) {
+        /*if (gClient.isConnected() && locUpd) {
             startLocUpds();
             addGeofence();
-        }
+        }*/
     }
 
     @Override
@@ -244,8 +276,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             case LocationSettingsStatusCodes.SUCCESS:
                 if (!gClient.isConnected())
                     gClient.connect();
-                startLocUpds();
-                Toast.makeText(this, "Getting your location", Toast.LENGTH_LONG).show();
+//                startLocUpds();
                 break;
             case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
                 try {
@@ -275,7 +306,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
         switch (requestCode) {
             case 1:
                 if (grantResults[0] != PackageManager.PERMISSION_GRANTED)
@@ -301,11 +333,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     SharedPreferences.Editor editor = sharedPreferences.edit();
                     editor.putBoolean(geofencesAddedKey, geofenceAdded);
                     editor.apply();
-                    Toast.makeText(MapsActivity.this, geofenceAdded ? "Yes" : "No",
+                    Toast.makeText(MapsActivity.this, geofenceAdded ? "Geofence created" :
+                            "Geofence not created",
                             Toast.LENGTH_SHORT).show();
-                } else {
-                    Log.e("MAPS", status.getStatusMessage());
-                }
+                } else Log.e("MAPS", status.getStatusMessage());
             }
         };
     }
@@ -315,9 +346,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Toast.makeText(this, "Not connected", Toast.LENGTH_SHORT).show();
         else {
             try {
-                geofencePendingIntent = getGeofencePendingIntent();
-                LocationServices.GeofencingApi.addGeofences(gClient, getGeofencingRequest(),
-                        geofencePendingIntent).setResultCallback(statusResult);
+                LocationServices.GeofencingApi
+                        .addGeofences(gClient, getGeofencingRequest(), getGeofencePendingIntent())
+                        .setResultCallback(statusResult);
             } catch (SecurityException e) {
                 Log.e("MAPS", e.getMessage());
             }
@@ -329,8 +360,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Toast.makeText(this, "Not connected", Toast.LENGTH_SHORT).show();
         else {
             try {
-                geofencePendingIntent = getGeofencePendingIntent();
-                LocationServices.GeofencingApi.removeGeofences(gClient, geofencePendingIntent)
+                LocationServices.GeofencingApi.removeGeofences(gClient, getGeofencePendingIntent())
                         .setResultCallback(statusResult);
             } catch (SecurityException e) {
                 Log.e("MAPS", e.getMessage());
@@ -339,18 +369,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private PendingIntent getGeofencePendingIntent() {
-        if (geofencePendingIntent != null)
-            return geofencePendingIntent;
         Intent intent = new Intent(this, GeofenceIntentService.class);
         return PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
-    private void createGeofence() {
+    private void createGeofence(Location loc) {
         geofenceList.add(new Geofence.Builder().setRequestId("Test")
                 .setCircularRegion(loc.getLatitude(), loc.getLongitude(), geofenceRadius)
                 .setExpirationDuration(geofenceExpiration)
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER |
-                        Geofence.GEOFENCE_TRANSITION_EXIT).build());
+                        Geofence.GEOFENCE_TRANSITION_EXIT | Geofence.GEOFENCE_TRANSITION_DWELL)
+                .setLoiteringDelay(1).build());
     }
 
     // Geofencing code ENDS HERE
@@ -359,5 +388,98 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Intent intent = new Intent(this, SignInActivity.class);
         startActivity(intent);
         finish();
+    }
+
+    private void addLocationToDatabase() {
+        dbUsersRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                for (DataSnapshot ids: dataSnapshot.getChildren()) {
+                    for (DataSnapshot keys: ids.getChildren()) {
+                        if (keys.getKey().equals("username"))
+                            if (keys.getValue().equals(session.getSPUsername())) {
+                                DatabaseReference dbUserIdRef = dbUsersRef.child(ids.getKey());
+                                dbUserIdRef.child("latitude").setValue(loc.getLatitude());
+                                dbUserIdRef.child("longitude").setValue(loc.getLongitude());
+                                return;
+                            }
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.e("MAPS", "could not update location");
+            }
+        });
+    }
+
+    private void gotoMarker() {
+        if (loc != null)
+            mMap.animateCamera(CameraUpdateFactory
+                .newLatLngZoom(new LatLng(loc.getLatitude(), loc.getLongitude()), 18));
+        else Toast.makeText(this, "Can't find your location", Toast.LENGTH_SHORT).show();
+    }
+
+    private void onLocUpdate(LatLng pos) {
+        if (marker != null)
+            marker.remove();
+        if (circle != null)
+            circle.remove();
+        marker = mMap.addMarker(new MarkerOptions().position(pos));
+        circle = mMap.addCircle(new CircleOptions().center(pos).radius(geofenceRadius)
+                .strokeColor(Color.GREEN).fillColor(Color.alpha(0)));
+        addLocationToDatabase();
+        createGeofence(loc);
+        addGeofence();
+        addNearbyUsers();
+    }
+
+    private void addNearbyUsers() {
+        dbUsersRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                removeUserMarkers();
+                for (DataSnapshot ids : dataSnapshot.getChildren()) {
+                    for (DataSnapshot keys : ids.getChildren()) {
+                        if (keys.getKey().equals("username") &&
+                                !keys.getValue().equals(session.getSPUsername())) {
+                            User user = ids.getValue(User.class);
+                            if (inRange(user.getLongitude(), user.getLatitude())) {
+                                userMarkers.add(mMap.addMarker(new MarkerOptions().position(
+                                        new LatLng(user.getLatitude(), user.getLongitude()))));
+                                Log.i("MAPS", "User added");
+                            }
+                            break;
+                        }
+
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.e("MAPS", databaseError.getMessage());
+            }
+        });
+    }
+
+    private boolean inRange(double lng, double lat) {
+        float[] distance = new float[1];
+        Location.distanceBetween(lat, lng, loc.getLatitude(), loc.getLongitude(), distance);
+        return distance[0] <= (float) geofenceRadius;
+    }
+
+    private void removeUserMarkers() {
+        if (userMarkers.size() > 0)
+            for (int i = 0; i < userMarkers.size(); i++){
+                    userMarkers.get(i).remove();
+                    Log.i("MAPS", "User removed");
+            }
+        userMarkers.clear();
+    }
+
+    private double pointValue(double r, double p1, double p2) {
+        return (((1 - r) * p1) + (r * p2));
     }
 }
