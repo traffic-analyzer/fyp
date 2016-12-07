@@ -14,9 +14,12 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
+import android.text.format.DateFormat;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -51,6 +54,7 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 
+import models.Message;
 import models.User;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
@@ -73,9 +77,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected Marker marker;
     protected Circle circle;
     private UserSession session;
-    private DatabaseReference dbRootRef, dbUsersRef;
-    private Button btnSearchLocation, btnGotoMarker;
+    private DatabaseReference dbRootRef, dbUsersRef, dbMessagesRef;
+    private Button btnSearchLocation, btnGotoMarker, btnSend;
     private ArrayList<Marker> userMarkers;
+    private TextView txtChat;
+    private EditText etMsgSpace;
 
     // Constants
     private String packageName = "com.nuces.ateebahmed.locationfinder",
@@ -88,6 +94,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
+        btnSend = (Button) findViewById(R.id.btnSend);
         btnSearchLocation = (Button) findViewById(R.id.btnSearchLocation);
         btnGotoMarker = (Button) findViewById(R.id.btnGotoMarker);
         btnGotoMarker.setOnClickListener(new View.OnClickListener() {
@@ -96,6 +103,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 gotoMarker();
             }
         });
+
+        txtChat = (TextView) findViewById(R.id.txtChat);
+        etMsgSpace = (EditText) findViewById(R.id.etMsgSpace);
 
         session = new UserSession(getApplicationContext());
         if (!session.isLoggedIn()) {
@@ -110,8 +120,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         locUpd = false;
         marker = null;
         circle = null;
+
         dbRootRef = FirebaseDatabase.getInstance().getReference();
         dbUsersRef = dbRootRef.child("users");
+        dbMessagesRef = dbRootRef.child("messages");
+
         clientBuilder();
         createLocReq();
         createLocSettingReq();
@@ -124,6 +137,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     startLocUpds();
                 if (locUpd)
                     gotoMarker();
+            }
+        });
+
+        btnSend.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                saveMessageInDatabase();
             }
         });
 
@@ -190,7 +210,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-        Log.e("MAPS", connectionResult.getErrorCode() + "");
+        Log.e("MAPS", connectionResult.getErrorCode() + ": " + connectionResult.getErrorMessage());
     }
 
     // Location detection service functions START HERE
@@ -213,6 +233,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onStart() {
         super.onStart();
         gClient.connect();
+        getNearbyMessages();
     }
 
     @Override
@@ -243,13 +264,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void stopLocUpds() {
-        LocationServices.FusedLocationApi.removeLocationUpdates(gClient, this)
-                .setResultCallback(new ResultCallback<Status>() {
-            @Override
-            public void onResult(@NonNull Status status) {
-                locUpd = false;
-            }
-        });
+        if (locUpd)
+            LocationServices.FusedLocationApi.removeLocationUpdates(gClient, this)
+                    .setResultCallback(new ResultCallback<Status>() {
+                @Override
+                public void onResult(@NonNull Status status) {
+                    locUpd = false;
+                }
+            });
     }
 
     @Override
@@ -394,6 +416,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         dbUsersRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
+                if (!dataSnapshot.exists()) {
+                    Log.e("MAPS", "users object not found");
+                    return;
+                }
                 for (DataSnapshot ids: dataSnapshot.getChildren()) {
                     for (DataSnapshot keys: ids.getChildren()) {
                         if (keys.getKey().equals("username"))
@@ -440,6 +466,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 removeUserMarkers();
+                if (!dataSnapshot.exists()) {
+                    Log.e("MAPS", "users object not found");
+                    return;
+                }
                 for (DataSnapshot ids : dataSnapshot.getChildren()) {
                     for (DataSnapshot keys : ids.getChildren()) {
                         if (keys.getKey().equals("username") &&
@@ -481,5 +511,64 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private double pointValue(double r, double p1, double p2) {
         return (((1 - r) * p1) + (r * p2));
+    }
+
+    private void saveMessageInDatabase() {
+        if (loc == null) {
+            Toast.makeText(this, "Enable location first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (etMsgSpace.getText().toString().isEmpty()) {
+            Toast.makeText(this, "Write something", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Message msg = new Message(etMsgSpace.getText().toString(), session.getSPUsername(),
+                loc.getLongitude(), loc.getLatitude(), System.currentTimeMillis());
+        dbMessagesRef.push().setValue(msg);
+        Log.i("MAPS", "Message sent");
+    }
+
+    private void getNearbyMessages() {
+//        if (loc == null) {
+//            Toast.makeText(this, "Enable location first", Toast.LENGTH_SHORT).show();
+//            return;
+//        }
+//        if (geofenceList.isEmpty())
+//            return;
+//        if (userMarkers.isEmpty()) {
+//            Toast.makeText(this, "No users present nearby", Toast.LENGTH_SHORT).show();
+//            return;
+//        }
+        dbMessagesRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.exists()) {
+                    for (DataSnapshot ids: dataSnapshot.getChildren()) {
+//                        for (DataSnapshot keys: ids.getChildren()) {
+//                            if (keys.getKey().equals("timestamp"))
+//                                if (keys.getValue().equals(System.currentTimeMillis() - 5 * 60 * 1000))
+//                                    if (inRange(ids.child("longitude").getValue(Double.class),
+//                                            ids.child("latitude").getValue(Double.class))) {
+                                        Message msg = ids.getValue(Message.class);
+                                        String line = DateFormat.getTimeFormat(getApplicationContext())
+                                                                .format(msg.getTimestamp()) + "\n"
+                                                + msg.getUsername() +
+                                                ": " + msg.getMessage();
+                                        if (txtChat.getText().toString().isEmpty())
+                                            txtChat.setText(line);
+                                        else txtChat.setText(txtChat.getText() + "\n" + line);
+                                        Log.i("MAPS", line);
+                                        Log.i("MAPS", "Message received");
+//                                    }
+//                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.e("MAPS", databaseError.getCode() + ": " + databaseError.getMessage());
+            }
+        });
     }
 }

@@ -10,14 +10,61 @@
     android:name="com.google.android.gms.maps.SupportMapFragment"
     android:layout_width="match_parent"
         tools:context="com.nuces.ateebahmed.locationfinder.MapsActivity"
-        android:layout_height="400dp" />
+        android:layout_height="200dp" />
+
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/msgLayout"
+        android:layout_below="@+id/map"
+        android:layout_marginTop="20dp"
+        android:weightSum="1">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_weight="4.80"
+            android:layout_height="120dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:id="@+id/txtChat"
+                android:layout_height="match_parent" />
+        </ScrollView>
+
+        <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/sendLayout"
+            android:layout_marginTop="10dp">
+
+            <EditText
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:inputType="textMultiLine"
+                android:ems="10"
+                android:id="@+id/etMsgSpace"
+                android:layout_weight="1"
+                android:layout_marginEnd="5dp" />
+
+            <Button
+                android:text="@string/btnSend"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/btnSend"
+                android:layout_weight="1"
+                android:layout_marginStart="5dp" />
+        </LinearLayout>
+    </LinearLayout>
 
     <LinearLayout
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/map"
-        android:layout_marginTop="20dp">
+        android:layout_below="@+id/msgLayout"
+        android:layout_marginTop="20dp"
+        android:id="@+id/btnLayout">
 
         <Button
             android:text="@string/btnGotoMarker"

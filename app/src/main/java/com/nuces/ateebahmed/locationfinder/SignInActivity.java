@@ -19,6 +19,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 
 public class SignInActivity extends AppCompatActivity {
@@ -82,6 +83,7 @@ public class SignInActivity extends AppCompatActivity {
                 dbUsersRef.addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
+                        Log.i("SIGNIN", "data changed");
                         if (existsInDatabase(dataSnapshot)) {
                             startMapsActivity();
                         }
@@ -106,6 +108,12 @@ public class SignInActivity extends AppCompatActivity {
     private boolean existsInDatabase(DataSnapshot snapshot) {
         boolean result[] = {false, false};
         if(snapshot.exists()) {
+            /*Query username = dbUsersRef.orderByChild("username").equalTo(etUsername.getText().toString()),
+                    password = dbUsersRef.orderByChild("password").equalTo(etPassLogin.getText().toString());
+            if (!username.toString().isEmpty())
+                result[0] = true;
+            if (!password.toString().isEmpty())
+                result[1] = true;*/
             for (DataSnapshot ids: snapshot.getChildren()) {
                 for (DataSnapshot keys: ids.getChildren()) {
                     if (keys.getKey().equals("username"))
