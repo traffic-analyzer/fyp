@@ -22,6 +22,9 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+
 public class SignInActivity extends AppCompatActivity {
 
     private TextView regLink;
@@ -80,15 +83,15 @@ public class SignInActivity extends AppCompatActivity {
         btnLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                dbUsersRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                dbUsersRef.orderByChild("username").equalTo(etUsername.getText().toString())
+                        .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
-                        Log.i("SIGNIN", "data changed");
                         if (existsInDatabase(dataSnapshot)) {
+                            session.createSession(etUsername.getText().toString());
                             startMapsActivity();
-                        }
-                        else Toast.makeText(SignInActivity.this, "Invalid Username/Password",
-                                    Toast.LENGTH_SHORT).show();
+                        } else Toast.makeText(SignInActivity.this, "Invalid Username/Password",
+                                Toast.LENGTH_SHORT).show();
                     }
 
                     @Override
@@ -105,31 +108,18 @@ public class SignInActivity extends AppCompatActivity {
         super.onStart();
     }
 
-    private boolean existsInDatabase(DataSnapshot snapshot) {
+    private boolean existsInDatabase(DataSnapshot dataSnapshot) {
         boolean result[] = {false, false};
-        if(snapshot.exists()) {
-            /*Query username = dbUsersRef.orderByChild("username").equalTo(etUsername.getText().toString()),
-                    password = dbUsersRef.orderByChild("password").equalTo(etPassLogin.getText().toString());
-            if (!username.toString().isEmpty())
-                result[0] = true;
-            if (!password.toString().isEmpty())
-                result[1] = true;*/
-            for (DataSnapshot ids: snapshot.getChildren()) {
-                for (DataSnapshot keys: ids.getChildren()) {
-                    if (keys.getKey().equals("username"))
-                        if (keys.getValue().equals(etUsername.getText().toString())) {
+                if (dataSnapshot.exists())
+                    for (DataSnapshot ids: dataSnapshot.getChildren()) {
+                        if (ids.child("username").getValue().toString().equals(etUsername.getText().toString()))
                             result[0] = true;
-                            session.createSession(etUsername.getText().toString());
-                        }
-                    if (keys.getKey().equals("password"))
-                        if (keys.getValue().equals(etPassLogin.getText().toString())) {
+                        if (ids.child("password").getValue().toString().equals(etPassLogin.getText().toString()))
                             result[1] = true;
-                        }
-                }
-            }
+                        Log.i("SIGNIN", "username: " + result[0]);
+                        Log.i("SIGNIN", "password: " + result[1]);
+                    }
             return result[0] && result[1];
-        }
-        return false;
     }
 
     private void checkFields() {
