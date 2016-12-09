@@ -89,37 +89,34 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void addValuesInDatabase() {
-        User user = new User(etName.getText().toString(), etEmail.getText().toString(),
-                etUser.getText().toString(), etPassword.getText().toString());
+        User user = new User(etName.getText().toString().trim(), etEmail.getText().toString().trim(),
+                etUser.getText().toString().trim(), etPassword.getText().toString().trim());
 
         dbUsersRef.push().setValue(user);
         Toast.makeText(this, "Registered successfully", Toast.LENGTH_SHORT).show();
     }
 
-    private boolean existInDatabase(DataSnapshot snapshot) {
-        if(snapshot.exists()) {
-            for (DataSnapshot ids: snapshot.getChildren()) {
-                for (DataSnapshot keys: ids.getChildren()) {
-                    if(keys.getKey().equals("email"))
-                        if (keys.getValue().equals(etEmail.getText().toString())) {
-                            Toast.makeText(this, "Email already registered", Toast.LENGTH_SHORT).show();
-                            return true;
-                        }
-                    if (keys.getKey().equals("username"))
-                        if (keys.getValue().equals(etUser.getText().toString())) {
-                            Toast.makeText(this, "Username not available", Toast.LENGTH_SHORT).show();
-                            return true;
-                        }
+    private boolean existInDatabase(DataSnapshot dataSnapshot) {
+        if (dataSnapshot.exists()) {
+            for (DataSnapshot ids : dataSnapshot.getChildren()) {
+                if (ids.child("email").getValue().equals(etEmail.getText().toString().trim())) {
+                    Toast.makeText(RegisterActivity.this, "Email already registered", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+                if (ids.child("username").getValue().equals(etUser.getText().toString().trim())) {
+                    Toast.makeText(RegisterActivity.this, "Username not available", Toast.LENGTH_SHORT).show();
+                    return true;
                 }
             }
-            return false;
         }
         return false;
     }
 
     private void checkFields() {
-        if (etEmail.getText().toString().isEmpty() || etUser.getText().toString().isEmpty() ||
-                etPassword.getText().toString().isEmpty() || etName.getText().toString().isEmpty())
+        if (etEmail.getText().toString().trim().isEmpty() ||
+                etUser.getText().toString().trim().isEmpty() ||
+                etPassword.getText().toString().trim().isEmpty() ||
+                etName.getText().toString().trim().isEmpty())
             btnRegister.setEnabled(false);
         else btnRegister.setEnabled(true);
     }

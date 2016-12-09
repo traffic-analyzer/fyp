@@ -14,7 +14,7 @@ public class UserSession {
     private Context context;
     private static final int PRIVATE_MODE = 0;
     private static final String SP_NAME = "com.nuces.ateebahmed.locationfinder.PREF_FILE_KEY",
-            IS_LOGIN = "isLoggedIn", USERNAME = "username";
+            IS_LOGIN = "isLoggedIn", USERNAME = "username", DB_KEY = "";
 
     public UserSession() {
 
@@ -26,9 +26,10 @@ public class UserSession {
         editor = sp.edit();
     }
 
-    public void createSession(String user) {
+    public void createSession(String user, String key) {
         editor.putBoolean(IS_LOGIN, true);
         editor.putString(USERNAME, user);
+        editor.putString(DB_KEY, key);
         editor.commit();
     }
 
@@ -38,6 +39,10 @@ public class UserSession {
 
     public boolean isLoggedIn() {
         return sp.getBoolean(IS_LOGIN, false);
+    }
+
+    public String getDbKey() {
+        return  sp.getString(DB_KEY, null);
     }
 
     public void logoutUser() {

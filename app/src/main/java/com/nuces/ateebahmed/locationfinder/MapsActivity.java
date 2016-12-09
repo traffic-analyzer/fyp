@@ -77,7 +77,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected Marker marker;
     protected Circle circle;
     private UserSession session;
-    private DatabaseReference dbRootRef, dbUsersRef, dbMessagesRef;
+    private DatabaseReference dbRootRef, dbUsersRef, dbMessagesRef, dbUser;
     private Button btnSearchLocation, btnGotoMarker, btnSend;
     private ArrayList<Marker> userMarkers;
     private TextView txtChat;
@@ -124,6 +124,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         dbRootRef = FirebaseDatabase.getInstance().getReference();
         dbUsersRef = dbRootRef.child("users");
         dbMessagesRef = dbRootRef.child("messages");
+        if (session.isLoggedIn())
+            dbUser = dbUsersRef.child(session.getDbKey()).getRef();
 
         clientBuilder();
         createLocReq();
@@ -151,6 +153,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        addNearbyUsers();
+        getNearbyMessages();
     }
 
     // Google Play Services client initialized
@@ -191,6 +196,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+
+        // Move the camera to Karachi, PK
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(24.8615, 67.0099), 10));
 
         // Add a marker in Sydney and move the camera
         /*LatLng sydney = new LatLng(0, 0);
@@ -233,7 +241,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onStart() {
         super.onStart();
         gClient.connect();
-        getNearbyMessages();
     }
 
     @Override
@@ -243,6 +250,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (gClient.isConnected())
             gClient.disconnect();
         userMarkers.clear();
+        removeLocationFromDatabase();
     }
 
     private void startLocUpds() {
@@ -280,6 +288,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         removeGeofence();
         stopLocUpds();
         userMarkers.clear();
+        removeLocationFromDatabase();
     }
 
     @Override
@@ -413,31 +422,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void addLocationToDatabase() {
-        dbUsersRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                if (!dataSnapshot.exists()) {
-                    Log.e("MAPS", "users object not found");
-                    return;
-                }
-                for (DataSnapshot ids: dataSnapshot.getChildren()) {
-                    for (DataSnapshot keys: ids.getChildren()) {
-                        if (keys.getKey().equals("username"))
-                            if (keys.getValue().equals(session.getSPUsername())) {
-                                DatabaseReference dbUserIdRef = dbUsersRef.child(ids.getKey());
-                                dbUserIdRef.child("latitude").setValue(loc.getLatitude());
-                                dbUserIdRef.child("longitude").setValue(loc.getLongitude());
-                                return;
-                            }
-                    }
-                }
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-                Log.e("MAPS", "could not update location");
-            }
-        });
+        dbUser.child("latitude").setValue(loc.getLatitude());
+        dbUser.child("longitude").setValue(loc.getLongitude());
     }
 
     private void gotoMarker() {
@@ -458,7 +444,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         addLocationToDatabase();
         createGeofence(loc);
         addGeofence();
-        addNearbyUsers();
     }
 
     private void addNearbyUsers() {
@@ -470,21 +455,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     Log.e("MAPS", "users object not found");
                     return;
                 }
-                for (DataSnapshot ids : dataSnapshot.getChildren()) {
-                    for (DataSnapshot keys : ids.getChildren()) {
-                        if (keys.getKey().equals("username") &&
-                                !keys.getValue().equals(session.getSPUsername())) {
+                if (loc != null)
+                    for (DataSnapshot ids : dataSnapshot.getChildren()) {
+                        if (!ids.getKey().equals(dbUser.getKey())) {
                             User user = ids.getValue(User.class);
                             if (inRange(user.getLongitude(), user.getLatitude())) {
                                 userMarkers.add(mMap.addMarker(new MarkerOptions().position(
                                         new LatLng(user.getLatitude(), user.getLongitude()))));
                                 Log.i("MAPS", "User added");
                             }
-                            break;
                         }
-
                     }
-                }
             }
 
             @Override
@@ -495,6 +476,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private boolean inRange(double lng, double lat) {
+        if(lng > 90 && lat > 180)
+            return false;
         float[] distance = new float[1];
         Location.distanceBetween(lat, lng, loc.getLatitude(), loc.getLongitude(), distance);
         return distance[0] <= (float) geofenceRadius;
@@ -522,46 +505,42 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Toast.makeText(this, "Write something", Toast.LENGTH_SHORT).show();
             return;
         }
-        Message msg = new Message(etMsgSpace.getText().toString(), session.getSPUsername(),
+        Message msg = new Message(etMsgSpace.getText().toString().trim(), session.getSPUsername(),
                 loc.getLongitude(), loc.getLatitude(), System.currentTimeMillis());
         dbMessagesRef.push().setValue(msg);
         Log.i("MAPS", "Message sent");
     }
 
     private void getNearbyMessages() {
-//        if (loc == null) {
-//            Toast.makeText(this, "Enable location first", Toast.LENGTH_SHORT).show();
-//            return;
-//        }
-//        if (geofenceList.isEmpty())
-//            return;
-//        if (userMarkers.isEmpty()) {
-//            Toast.makeText(this, "No users present nearby", Toast.LENGTH_SHORT).show();
-//            return;
-//        }
         dbMessagesRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
+                if (loc == null) {
+                    Toast.makeText(MapsActivity.this, "Enable location first", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (geofenceList.isEmpty())
+                    return;
+                if (userMarkers.isEmpty()) {
+                    Toast.makeText(MapsActivity.this, "No users present nearby", Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 if (dataSnapshot.exists()) {
+                    String line = "";
                     for (DataSnapshot ids: dataSnapshot.getChildren()) {
-//                        for (DataSnapshot keys: ids.getChildren()) {
-//                            if (keys.getKey().equals("timestamp"))
-//                                if (keys.getValue().equals(System.currentTimeMillis() - 5 * 60 * 1000))
-//                                    if (inRange(ids.child("longitude").getValue(Double.class),
-//                                            ids.child("latitude").getValue(Double.class))) {
-                                        Message msg = ids.getValue(Message.class);
-                                        String line = DateFormat.getTimeFormat(getApplicationContext())
-                                                                .format(msg.getTimestamp()) + "\n"
-                                                + msg.getUsername() +
-                                                ": " + msg.getMessage();
-                                        if (txtChat.getText().toString().isEmpty())
-                                            txtChat.setText(line);
-                                        else txtChat.setText(txtChat.getText() + "\n" + line);
-                                        Log.i("MAPS", line);
-                                        Log.i("MAPS", "Message received");
-//                                    }
-//                        }
+                        if (inTimeLength(ids.child("timestamp").getValue(Long.class))) {
+                            if (inRange(ids.child("longitude").getValue(Double.class),
+                                    ids.child("latitude").getValue(Double.class))) {
+                                Message msg = ids.getValue(Message.class);
+                                line += DateFormat.getTimeFormat(getApplicationContext())
+                                                        .format(msg.getTimestamp()) + "\n"
+                                        + msg.getUsername() +
+                                        ": " + msg.getMessage() + "\n";
+                                Log.i("MAPS", "Message received");
+                            }
+                        }
                     }
+                    txtChat.setText(line);
                 }
             }
 
@@ -570,5 +549,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Log.e("MAPS", databaseError.getCode() + ": " + databaseError.getMessage());
             }
         });
+    }
+
+    private boolean inTimeLength(long timestamp) {
+        long fiveMin = 5 * 60 * 1000, beforeFiveMin = System.currentTimeMillis() - fiveMin;
+        return (beforeFiveMin <= timestamp);
+    }
+
+    private void removeLocationFromDatabase() {
+        dbUser.child("latitude").setValue(181);
+        dbUser.child("longitude").setValue(91);
     }
 }

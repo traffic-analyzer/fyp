@@ -33,11 +33,14 @@ public class SignInActivity extends AppCompatActivity {
     private DatabaseReference dbRootRef, dbUsersRef;
     private TextWatcher fieldsEmpty;
     private UserSession session;
+    private String userKey;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_signin);
+
+        userKey = "";
 
         dbRootRef = FirebaseDatabase.getInstance().getReference();
         dbUsersRef = dbRootRef.child("users");
@@ -83,12 +86,13 @@ public class SignInActivity extends AppCompatActivity {
         btnLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                dbUsersRef.orderByChild("username").equalTo(etUsername.getText().toString())
+                dbUsersRef.orderByChild("username").equalTo(etUsername.getText().toString().trim())
                         .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(DataSnapshot dataSnapshot) {
                         if (existsInDatabase(dataSnapshot)) {
-                            session.createSession(etUsername.getText().toString());
+                            Log.i("SIGNIN", userKey);
+                            session.createSession(etUsername.getText().toString().trim(), userKey);
                             startMapsActivity();
                         } else Toast.makeText(SignInActivity.this, "Invalid Username/Password",
                                 Toast.LENGTH_SHORT).show();
@@ -112,10 +116,14 @@ public class SignInActivity extends AppCompatActivity {
         boolean result[] = {false, false};
                 if (dataSnapshot.exists())
                     for (DataSnapshot ids: dataSnapshot.getChildren()) {
-                        if (ids.child("username").getValue().toString().equals(etUsername.getText().toString()))
+                        if (ids.child("username").getValue().toString()
+                                .equals(etUsername.getText().toString().trim()))
                             result[0] = true;
-                        if (ids.child("password").getValue().toString().equals(etPassLogin.getText().toString()))
+                        if (ids.child("password").getValue().toString()
+                                .equals(etPassLogin.getText().toString().trim()))
                             result[1] = true;
+                        if (result[0] && result[1])
+                            userKey = ids.getKey();
                         Log.i("SIGNIN", "username: " + result[0]);
                         Log.i("SIGNIN", "password: " + result[1]);
                     }
@@ -123,7 +131,8 @@ public class SignInActivity extends AppCompatActivity {
     }
 
     private void checkFields() {
-        if(etUsername.getText().toString().isEmpty() || etPassLogin.getText().toString().isEmpty())
+        if(etUsername.getText().toString().trim().isEmpty() ||
+                etPassLogin.getText().toString().trim().isEmpty())
             btnLogin.setEnabled(false);
         else btnLogin.setEnabled(true);
     }
