@@ -39,8 +39,7 @@ public class GeofenceIntentService extends IntentService {
         int geofenceTransition = event.getGeofenceTransition();
 
         if (geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER ||
-                geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT ||
-                geofenceTransition == Geofence.GEOFENCE_TRANSITION_DWELL) {
+                geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT) {
             List<Geofence> trigger = event.getTriggeringGeofences();
             //TODO: notify, get transition details and log
             Log.i(TAG, getTranstitionDetails(geofenceTransition, trigger));
@@ -55,8 +54,6 @@ public class GeofenceIntentService extends IntentService {
                 return "Entered in geofence";
             case Geofence.GEOFENCE_TRANSITION_EXIT:
                 return "Exited from geofence";
-            case Geofence.GEOFENCE_TRANSITION_DWELL:
-                return "Wandering in geofence";
             default:
                 return "Unknown transition";
         }

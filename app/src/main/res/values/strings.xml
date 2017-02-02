@@ -30,4 +30,6 @@
     <string name="searchLocation">Search your Location</string>
     <string name="btnGotoMarker">Go to my location</string>
     <string name="btnSend">Send</string>
+    <string name="search_loc">Search location</string>
+    <string name="etMessag">Name</string>
 </resources>

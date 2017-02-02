@@ -1,6 +1,7 @@
 package com.nuces.ateebahmed.locationfinder;
 
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -10,6 +11,11 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -22,16 +28,25 @@ public class RegisterActivity extends AppCompatActivity {
 
     private EditText etUser, etPassword, etName, etEmail;
     private Button btnRegister;
-    private DatabaseReference dbRootRef, dbUsersRef;
-    private TextWatcher fieldsEmpty;
+    private DatabaseReference dbUsersRef;
+    private FirebaseAuth userAuth;
+    private FirebaseAuth.AuthStateListener userAuthListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
-        dbRootRef = FirebaseDatabase.getInstance().getReference();
+        DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
         dbUsersRef = dbRootRef.child("users");
+
+        userAuth = FirebaseAuth.getInstance();
+        userAuthListener = new FirebaseAuth.AuthStateListener() {
+            @Override
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                addValuesInDatabase(firebaseAuth.getCurrentUser());
+            }
+        };
 
         etName = (EditText) findViewById(R.id.etName);
         etUser = (EditText) findViewById(R.id.etUser);
@@ -40,7 +55,7 @@ public class RegisterActivity extends AppCompatActivity {
         btnRegister = (Button) findViewById(R.id.btnRegister);
         btnRegister.setEnabled(false);
 
-        fieldsEmpty = new TextWatcher() {
+        TextWatcher fieldsEmpty = new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
 
@@ -60,20 +75,7 @@ public class RegisterActivity extends AppCompatActivity {
         btnRegister.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                dbUsersRef.addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot dataSnapshot) {
-                        if(!existInDatabase(dataSnapshot)) {
-                            addValuesInDatabase();
-                            finish();
-                        }
-                    }
-
-                    @Override
-                    public void onCancelled(DatabaseError databaseError) {
-                        Log.e("Firebase: ", databaseError.getMessage());
-                    }
-                });
+                createNewUser();
             }
         });
 
@@ -86,25 +88,41 @@ public class RegisterActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        userAuth.addAuthStateListener(userAuthListener);
     }
 
-    private void addValuesInDatabase() {
-        User user = new User(etName.getText().toString().trim(), etEmail.getText().toString().trim(),
-                etUser.getText().toString().trim(), etPassword.getText().toString().trim());
+    @Override
+    protected void onStop() {
+        super.onStop();
+        userAuth.removeAuthStateListener(userAuthListener);
+    }
 
-        dbUsersRef.push().setValue(user);
-        Toast.makeText(this, "Registered successfully", Toast.LENGTH_SHORT).show();
+    @Override
+    protected void onResume() {
+        super.onResume();
+        userAuth.addAuthStateListener(userAuthListener);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        userAuth.removeAuthStateListener(userAuthListener);
+    }
+
+    private void addValuesInDatabase(FirebaseUser fUser) {
+        if (fUser != null) {
+            User mUser = new User(etName.getText().toString().trim(),
+                    etEmail.getText().toString().trim(), etUser.getText().toString().trim());
+            dbUsersRef.child(fUser.getUid()).setValue(mUser);
+        }
     }
 
     private boolean existInDatabase(DataSnapshot dataSnapshot) {
         if (dataSnapshot.exists()) {
             for (DataSnapshot ids : dataSnapshot.getChildren()) {
-                if (ids.child("email").getValue().equals(etEmail.getText().toString().trim())) {
-                    Toast.makeText(RegisterActivity.this, "Email already registered", Toast.LENGTH_SHORT).show();
-                    return true;
-                }
                 if (ids.child("username").getValue().equals(etUser.getText().toString().trim())) {
-                    Toast.makeText(RegisterActivity.this, "Username not available", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(RegisterActivity.this, "Username not available",
+                            Toast.LENGTH_SHORT).show();
                     return true;
                 }
             }
@@ -119,5 +137,39 @@ public class RegisterActivity extends AppCompatActivity {
                 etName.getText().toString().trim().isEmpty())
             btnRegister.setEnabled(false);
         else btnRegister.setEnabled(true);
+    }
+
+    private void createNewUser() {
+        dbUsersRef.orderByChild("email").equalTo(etEmail.getText().toString().trim())
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        if (!existInDatabase(dataSnapshot)) {
+                            userAuth.createUserWithEmailAndPassword(etEmail.getText().toString().trim(),
+                                    etPassword.getText().toString().trim())
+                                    .addOnCompleteListener(RegisterActivity.this,
+                                            new OnCompleteListener<AuthResult>() {
+                                                @Override
+                                                public void onComplete(@NonNull Task<AuthResult> task) {
+                                                    Log.i("REGISTER", "onComplete: " + task.isSuccessful());
+                                                    if (!task.isSuccessful()) {
+                                                        Log.e("REGISTER", "signup failed");
+                                                        Toast.makeText(RegisterActivity.this, "Signup failed",
+                                                                Toast.LENGTH_SHORT).show();
+                                                    } else {
+                                                        Toast.makeText(RegisterActivity.this, "Signup successful",
+                                                                Toast.LENGTH_SHORT).show();
+                                                        finish();
+                                                    }
+                                                }
+                                            });
+                        }
+                    }
+
+                    @Override
+                    public void onCancelled(DatabaseError databaseError) {
+
+                    }
+                });
     }
 }
