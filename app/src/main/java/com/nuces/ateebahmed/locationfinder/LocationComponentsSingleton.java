@@ -38,31 +38,12 @@ public class LocationComponentsSingleton {
     }
 
     protected synchronized void buildGoogleClient() {
-        googleApiClient = new GoogleApiClient.Builder(context).addApi(LocationServices.API)
-                /*.addOnConnectionFailedListener(new GoogleApiClient.OnConnectionFailedListener() {
-            @Override
-            public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-                Log.e(TAG, connectionResult.getErrorCode() + ": " +
-                        connectionResult.getErrorMessage());
-            }
-        }).addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
-                    @Override
-                    public void onConnected(@Nullable Bundle bundle) {
-                        Log.i(TAG, "connected");
-                    }
-
-                    @Override
-                    public void onConnectionSuspended(int i) {
-                        Log.i(TAG, "connection suspended: " + i);
-                        googleApiClient.connect();
-                    }
-                })*/.build();
+        googleApiClient = new GoogleApiClient.Builder(context).addApi(LocationServices.API).build();
     }
 
     protected synchronized void buildLocationRequest() {
         locationRequest = new LocationRequest().setInterval(INTERVAL_UPDATE)
-                .setFastestInterval(FASTEST_INTERVAL_UPDATE)
-                /*.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)*/;
+                .setFastestInterval(FASTEST_INTERVAL_UPDATE);
     }
 
     protected synchronized void buildLocationSettings() {

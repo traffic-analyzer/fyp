@@ -1,6 +1,5 @@
 package com.nuces.ateebahmed.locationfinder;
 
-import android.Manifest;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.PendingIntent;
@@ -10,7 +9,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
 import android.net.Uri;
@@ -19,8 +17,6 @@ import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.MenuItemCompat;
@@ -71,7 +67,6 @@ import java.util.Date;
 import models.User;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback,
-        /*ConnectionCallbacks, OnConnectionFailedListener, LocationListener,*/
         ResultCallback<LocationSettingsResult> {
 
     protected static final String ACTION = "com.nuces.ateebahmed.locationfinder.MapsActivity";
@@ -113,7 +108,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private long geofenceExpiration = 60 * 60 * 1000, geofenceRadius = 100;
     private static final int REQ_IMAGE_CAPTURE = 1;
     protected static final int CHECK_SETTINGS = 0x1;
-    private static final long UPDATE_INTERVAL = 30000, FASTEST_UPDATE = 5000;
+    private static final String GEOFENCE_REQUEST_KEY = "own";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -178,6 +173,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
 
         geofenceList = new ArrayList<>();
+        statusResult = getStatusResult();
         userMarkers = new ArrayList<>();
         sharedPreferences = getSharedPreferences(sharedPreferencesName, MODE_PRIVATE);
         geofenceAdded = sharedPreferences.getBoolean(geofencesAddedKey, false);
@@ -242,43 +238,19 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     /*@Override
     public void onConnected(@Nullable Bundle bundle) {
         Log.i("MAPS", "connected");
-        *//*createLocReq();
+        createLocReq();
         createLocSettingReq();
-        checkLocSettings();*//*
+        checkLocSettings();
         statusResult = getStatusResult();
-        *//*attachUsersListener();
+        attachUsersListener();
         attachMessageListener();
         addNearbyUsers();
-        getNearbyMessages();*//*
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-        gClient.connect();
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-        Log.e("MAPS", connectionResult.getErrorCode() + ": " + connectionResult.getErrorMessage());
-    }
-
-    @Override
-    public void onLocationChanged(Location location) {
-
-        loc = location;
-        LatLng pos = new LatLng(location.getLatitude(), location.getLongitude());
-        onLocUpdate(pos);
-        if (geofenceList.size() > 0) {
-            geofenceList.remove(0);
-            removeGeofence();
-        }
-        Log.i("MAPS", "changed");
+        getNearbyMessages();
     }*/
 
     @Override
     protected void onStart() {
         super.onStart();
-//        gClient.connect();
     }
 
     @Override
@@ -286,11 +258,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onStop();
 //        detachMessageListener();
 //        detachUsersListener();
-        removeGeofence();
         /*removeUserMarkers();
-        removeLocationFromDatabase();
-        if (gClient.isConnected())
-            gClient.disconnect();*/
+        removeLocationFromDatabase();*/
     }
 
     @Override
@@ -300,8 +269,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         localBroadcastManager.unregisterReceiver(locationBroacastReceiver);
 //        detachMessageListener();
 //        detachUsersListener();
-        removeGeofence();
-        /*stopLocUpds();
+        if (!geofenceList.isEmpty()) {
+            geofenceList.remove(0);
+            removeGeofence();
+        }
+        /*
         removeUserMarkers();
         removeLocationFromDatabase();*/
     }
@@ -310,12 +282,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected void onResume() {
         super.onResume();
         /*if (gClient.isConnected() && locUpd) {
-            startLocUpds();
             attachMessageListener();
             attachUsersListener();
         }*/
         IntentFilter filter = new IntentFilter(BackgroundLocationService.ACTION);
         localBroadcastManager.registerReceiver(locationBroacastReceiver, filter);
+        instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         checkLocSettings();
     }
 
@@ -324,9 +296,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         final Status status = locationSettingsResult.getStatus();
         switch (status.getStatusCode()) {
             case LocationSettingsStatusCodes.SUCCESS:
-                /*if (!gClient.isConnected())
-                    gClient.connect();
-                startLocUpds();*/
                 sendLocationUpdateSignal(LocationRequest.PRIORITY_HIGH_ACCURACY);
                 Toast.makeText(this, "Location enabled", Toast.LENGTH_SHORT).show();
                 break;
@@ -349,7 +318,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         switch (requestCode) {
             case Activity.RESULT_OK:
                 sendLocationUpdateSignal(LocationRequest.PRIORITY_HIGH_ACCURACY);
-//                startLocUpds();
                 Log.i("MAPS", "Okay");
                 break;
             case Activity.RESULT_CANCELED:
@@ -365,18 +333,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     Log.i("MAPS", "captured");
                 }
                 break;
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case 1:
-                if (grantResults.length > 0 && grantResults[0] != PackageManager.PERMISSION_GRANTED)
-                    Toast.makeText(this, "Enable location in Settings", Toast.LENGTH_LONG).show();
-                /*else startLocUpds();*/
         }
     }
 
@@ -422,10 +378,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     // Geofencing code STARTS HERE
     private GeofencingRequest getGeofencingRequest() {
-        GeofencingRequest.Builder b = new GeofencingRequest.Builder();
-        b.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER);
-        b.addGeofences(geofenceList);
-        return b.build();
+        return new GeofencingRequest.Builder()
+                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+                .addGeofences(geofenceList).build();
     }
 
     private ResultCallback<Status> getStatusResult() {
@@ -437,11 +392,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     SharedPreferences.Editor editor = sharedPreferences.edit();
                     editor.putBoolean(geofencesAddedKey, geofenceAdded);
                     editor.apply();
-                    if (geofenceAdded)
-                    Toast.makeText(MapsActivity.this, "Geofence created", Toast.LENGTH_SHORT).show();
-                    else Toast.makeText(MapsActivity.this, "Geofence not created",
-                            Toast.LENGTH_SHORT).show();
-                } else Log.e("MAPS", status.getStatusCode() + status.getStatusMessage());
+                } else Log.e("MAPS", status.getStatusCode() + ": " + status.getStatusMessage());
             }
         };
     }
@@ -474,12 +425,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private PendingIntent getGeofencePendingIntent() {
-        Intent intent = new Intent(this, GeofenceIntentService.class);
-        return PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+        return PendingIntent.getService(this, 0, new Intent(this, GeofenceIntentService.class),
+                PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     private void createGeofence(Location loc) {
-        geofenceList.add(new Geofence.Builder().setRequestId("Test")
+        geofenceList.add(new Geofence.Builder().setRequestId(GEOFENCE_REQUEST_KEY)
                 .setCircularRegion(loc.getLatitude(), loc.getLongitude(), geofenceRadius)
                 .setExpirationDuration(geofenceExpiration)
                 .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER |
@@ -512,6 +463,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             marker.remove();
         if (circle != null)
             circle.remove();
+        if (!geofenceList.isEmpty()) {
+            geofenceList.remove(0);
+            removeGeofence();
+        }
         marker = mMap.addMarker(new MarkerOptions().position(pos));
         circle = mMap.addCircle(new CircleOptions().center(pos).radius(geofenceRadius)
                 .strokeColor(Color.GREEN).fillColor(Color.alpha(0)));
@@ -744,45 +699,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         dbUser.child("longitude").setValue(91);
     }
 
-    // Google Play Services client initialized
-    /*protected synchronized void clientBuilder() {
-        gClient = new GoogleApiClient.Builder(this).addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this).addApi(LocationServices.API).build();
-    }*/
-
-    // Creating a location request for detecting location providing parameters
-    /*protected void createLocReq() {
-        locReq = new LocationRequest();
-        locReq.setInterval(UPDATE_INTERVAL);
-        locReq.setFastestInterval(FASTEST_UPDATE);
-        locReq.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-    }*/
-
-    // Create a request dialgoue if location is off
-    /*protected void createLocSettingReq() {
-        LocationSettingsRequest.Builder b = new LocationSettingsRequest.Builder();
-        b.addLocationRequest(locReq);
-        locSettingReq = b.build();
-    }*/
-
     // Checks location setting and sends back the result
     protected void checkLocSettings() {
         PendingResult<LocationSettingsResult> res = LocationServices.SettingsApi
                 .checkLocationSettings(gClient, locSettingReq);
         res.setResultCallback(this);
-    }
-
-    // Checks for allowed permissions
-    private boolean checkLocationPermission() {
-        return (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                == PackageManager.PERMISSION_GRANTED);
-    }
-
-    // Requests for desired location if not allowed
-    private void requestLocationPermission() {
-        ActivityCompat.requestPermissions(this, new String[]{
-                Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.INTERNET
-        }, 1);
     }
 
     // Starts location service to detect location
@@ -883,22 +804,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void setLocationBroacastReceiver() {
-        locationBroacastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                boolean client = intent.getBooleanExtra("client", false),
-                        request = intent.getBooleanExtra("request", false);
-                if (client && request) {
-                    Log.i(TAG, "checking for permission");
-                    checkLocSettings();
-//                    checkLocationPermissions();
-                }
-                if (intent.getExtras().get("location") != null) {
-                    loc = (Location) intent.getExtras().get("location");
-                    onLocUpdate(new LatLng(loc.getLatitude(), loc.getLongitude()));
-                }
-            }
-        };
+        locationBroacastReceiver = new LocationBroadcastReceiver();
     }
 
     private boolean isServiceRunning() {
@@ -934,5 +840,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         i.putExtra("startlocationupdate", true);
         i.putExtra("priority", priority);
         localBroadcastManager.sendBroadcast(i);
+    }
+
+    private final class LocationBroadcastReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            boolean client = intent.getBooleanExtra("client", false),
+                    request = intent.getBooleanExtra("request", false);
+            if (client && request) {
+                Log.i(TAG, "checking for permission");
+                checkLocSettings();
+            }
+            if (intent.getExtras().get("location") != null) {
+                loc = (Location) intent.getExtras().get("location");
+                onLocUpdate(new LatLng(loc.getLatitude(), loc.getLongitude()));
+            }
+        }
     }
 }

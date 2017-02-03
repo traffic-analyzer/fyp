@@ -63,7 +63,7 @@ public class GeofenceIntentService extends IntentService {
         String trigger = "";
         for (Geofence t: triggers)
             trigger += t.getRequestId();
-        return getTransitionString(transition) + " " + trigger;
+        return getTransitionString(transition) + ": " + trigger;
     }
 }
 

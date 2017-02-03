@@ -49,7 +49,7 @@ public class BackgroundLocationService extends Service implements LocationListen
     private NotificationManager notificationManager;
     private final int NID = 10;
     private LocationComponentsSingleton instance;
-    private BroadcastReceiver locationSignalReceiver;
+    private BroadcastReceiver locationPermissionReceiver;
 
     public BackgroundLocationService() {
     }
@@ -99,7 +99,7 @@ public class BackgroundLocationService extends Service implements LocationListen
                 if (!gClient.isConnected() || !gClient.isConnecting())
                     gClient.connect();
                 IntentFilter filter = new IntentFilter(MapsActivity.ACTION);
-                localBroadcastManager.registerReceiver(locationSignalReceiver, filter);
+                localBroadcastManager.registerReceiver(locationPermissionReceiver, filter);
             }
         });
         return START_STICKY;
@@ -117,7 +117,7 @@ public class BackgroundLocationService extends Service implements LocationListen
     public void onDestroy() {
         super.onDestroy();
         Log.i(TAG, "service destroyed");
-        localBroadcastManager.unregisterReceiver(locationSignalReceiver);
+        localBroadcastManager.unregisterReceiver(locationPermissionReceiver);
         stopLocationUpdate();
         destroyGClient();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
@@ -188,17 +188,7 @@ public class BackgroundLocationService extends Service implements LocationListen
     }*/
 
     private void setLocationSignalReceiver() {
-        locationSignalReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (intent.getBooleanExtra("startlocationupdate", false)) {
-                    instance.setLocationPriority(intent.getIntExtra("priority",
-                            LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY));
-                    Log.i(TAG, locationRequest.getPriority() + "");
-                    startLocationUpdate();
-                }
-            }
-        };
+        locationPermissionReceiver = new LocationPermissionBroadcastReceiver();
     }
 
     private void sendLocationRequestSignal() {
@@ -242,6 +232,19 @@ public class BackgroundLocationService extends Service implements LocationListen
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             Log.i(TAG, msg.arg1 + "");
+        }
+    }
+    
+    private final class LocationPermissionBroadcastReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getBooleanExtra("startlocationupdate", false)) {
+                instance.setLocationPriority(intent.getIntExtra("priority",
+                        LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY));
+                Log.i(TAG, locationRequest.getPriority() + "");
+                startLocationUpdate();
+            }
         }
     }
 }
