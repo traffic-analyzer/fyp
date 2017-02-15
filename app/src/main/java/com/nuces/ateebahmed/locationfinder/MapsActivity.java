@@ -1,5 +1,6 @@
 package com.nuces.ateebahmed.locationfinder;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.PendingIntent;
@@ -9,15 +10,16 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
-import android.support.v4.content.FileProvider;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -107,7 +109,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             geofencesAddedKey = packageName + ".GEOFENCES_ADDED_KEY";
     private long geofenceExpiration = 60 * 60 * 1000, geofenceRadius = 100;
     private static final int REQ_IMAGE_CAPTURE = 1;
-    protected static final int CHECK_SETTINGS = 0x1;
+    protected static final int CHECK_SETTINGS = 0x1, ENABLE_LOCATION = 0x2;
     private static final String GEOFENCE_REQUEST_KEY = "own";
 
     @Override
@@ -256,6 +258,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onStop() {
         super.onStop();
+        sendLocationUpdateSignal(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
 //        detachMessageListener();
 //        detachUsersListener();
         /*removeUserMarkers();
@@ -265,7 +268,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onPause() {
         super.onPause();
-        sendLocationUpdateSignal(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
         localBroadcastManager.unregisterReceiver(locationBroacastReceiver);
 //        detachMessageListener();
 //        detachUsersListener();
@@ -285,8 +287,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             attachMessageListener();
             attachUsersListener();
         }*/
-        IntentFilter filter = new IntentFilter(BackgroundLocationService.ACTION);
-        localBroadcastManager.registerReceiver(locationBroacastReceiver, filter);
+        localBroadcastManager.registerReceiver(locationBroacastReceiver,
+                new IntentFilter(BackgroundLocationService.ACTION));
         instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         checkLocSettings();
     }
@@ -301,13 +303,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 break;
             case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
                 try {
-                    status.startResolutionForResult(MapsActivity.this, CHECK_SETTINGS);
+                    status.startResolutionForResult(MapsActivity.this, ENABLE_LOCATION);
                 } catch (IntentSender.SendIntentException e) {
-                    Log.e("MAPS", e.getMessage());
+                    Log.e(TAG, e.getMessage());
                 }
                 break;
             case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
-                Log.e("MAPS", "Location settings cannot be done");
+                Log.e(TAG, "Location settings cannot be done");
                 Toast.makeText(this, "Enable Location in Setttings", Toast.LENGTH_LONG).show();
                 break;
         }
@@ -318,14 +320,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         switch (requestCode) {
             case Activity.RESULT_OK:
                 sendLocationUpdateSignal(LocationRequest.PRIORITY_HIGH_ACCURACY);
-                Log.i("MAPS", "Okay");
+                Log.i(TAG, "Okay");
                 break;
             case Activity.RESULT_CANCELED:
-                Log.e("MAPS", "cancelled");
+                Log.e(TAG, "cancelled");
                 break;
             case REQ_IMAGE_CAPTURE:
                 if (resultCode == RESULT_OK) {
-                    addImageToGallery();
+//                    addImageToGallery();
 //                    Bundle extras = data.getExtras();
 //                    Bitmap image = (Bitmap) extras.get("data");
 //                    // TODO: create an imageview
@@ -373,6 +375,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case CHECK_SETTINGS:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+                {
+                    Log.i(TAG, "rechecking permission");
+                    checkLocSettings();
+                } else {
+                    Toast.makeText(this, "Allow location to send or receive updates",
+                            Toast.LENGTH_LONG).show();
+                }
+                break;
         }
     }
 
@@ -701,9 +719,17 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     // Checks location setting and sends back the result
     protected void checkLocSettings() {
-        PendingResult<LocationSettingsResult> res = LocationServices.SettingsApi
-                .checkLocationSettings(gClient, locSettingReq);
-        res.setResultCallback(this);
+        if (ContextCompat.checkSelfPermission(getApplicationContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Log.i(TAG, "asking permission");
+            ActivityCompat.requestPermissions(this, new String[]
+                    {Manifest.permission.ACCESS_FINE_LOCATION}, CHECK_SETTINGS);
+        } else {
+            Log.i(TAG, "checking gps");
+            PendingResult<LocationSettingsResult> res = LocationServices.SettingsApi
+                    .checkLocationSettings(gClient, locSettingReq);
+            res.setResultCallback(this);
+        }
     }
 
     // Starts location service to detect location
@@ -762,7 +788,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void startCamera() {
-        Intent camera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        Intent camera = new Intent(MapsActivity.this, CameraActivity.class);
+        startActivity(camera);
+        /*Intent camera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         if (camera.resolveActivity(getPackageManager()) != null) {
             File imageFile = null;
             imageFile = createImageFile();
@@ -771,7 +799,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 camera.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
                 startActivityForResult(camera, REQ_IMAGE_CAPTURE);
             }
-        }
+        }*/
     }
 
     private File createImageFile() {

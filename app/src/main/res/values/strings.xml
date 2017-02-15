@@ -8,7 +8,6 @@
     <string name="btnRegister">Register</string>
     <string name="etUserLogin">Name</string>
     <string name="etUsernameLogin">Username</string>
-    <string name="etpasslogin">etPassLogin</string>
     <string name="etPassLogin">********</string>
     <string name="btnLogin">Login</string>
     <string name="etRegLink">Don\'t have an account? Tap here</string>
@@ -32,4 +31,12 @@
     <string name="btnSend">Send</string>
     <string name="search_loc">Search location</string>
     <string name="etMessag">Name</string>
+    <string name="strBlocked">Blocked</string>
+    <string name="strSlow">Slow Pace</string>
+    <string name="strNormal">Normal</string>
+    <string name="strLow">Speedy</string>
+    <string name="strNone">No Traffic</string>
+    <string name="strQuestion">How is traffic situation ahead?</string>
+    <string name="btnCapture">capture</string>
+    <string name="btnFlash">flash</string>
 </resources>

@@ -9,35 +9,45 @@
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.nuces.ateebahmed.locationfinder.ChatActivity"
-    android:orientation="vertical"
-    android:weightSum="1">
+    android:orientation="vertical">
 
-    <ListView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:id="@+id/chat_view"
-        android:layout_weight="1.00">
-    </ListView>
-    <LinearLayout
-        android:orientation="horizontal"
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="2"
-        android:weightSum="1">
+        android:id="@+id/txtQuestion"
+        android:text="@string/strQuestion"
+        android:textSize="24sp"
+        android:gravity="center_horizontal"
+        android:layout_marginBottom="@dimen/activity_horizontal_margin"
+        android:textColor="#000"/>
 
-        <EditText
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:inputType="textPersonName"
-            android:ems="10"
-            android:id="@+id/etMessage"
-            android:width="250dp" />
+    <Button
+        android:text="@string/strBlocked"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/btnBlocked"/>
 
-        <Button
-            android:text="@string/btnSend"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:id="@+id/btnSend" />
-    </LinearLayout>
+    <Button
+        android:text="@string/strSlow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/btnSlow" />
 
+    <Button
+        android:text="@string/strNormal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/btnNormal" />
+
+    <Button
+        android:text="@string/strLow"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/btnSpeedy" />
+
+    <Button
+        android:text="@string/strNone"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/btnNone" />
 </LinearLayout>
