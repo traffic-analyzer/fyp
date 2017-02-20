@@ -14,6 +14,7 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.media.ExifInterface;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -25,6 +26,7 @@ import android.util.Log;
 import android.view.ContextThemeWrapper;
 import android.view.Surface;
 import android.view.View;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -42,21 +44,29 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
     private final String TAG = "CameraActivity";
     private CameraPreview preview;
     private Camera camera;
-    private Button flashCameraButton;
-    private Button captureImage;
-    private boolean flashmode;
+    private Button flashCameraButton, captureImage, record;
+    private boolean flashmode, camMode;
     private int rotation, orientation;
     private FrameLayout cameraView;
     private SensorManager sensorManager;
+    private MediaRecorder videoRecorder;
     private LocationComponentsSingleton instance;
     private final int CAMERA_REQUEST_CODE = 1;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        
         setContentView(R.layout.activity_camera);
 
         instance = LocationComponentsSingleton.getInstance(getApplicationContext());
+
+        camMode = false;
 
         // camera surface view created
         cameraView = (FrameLayout) findViewById(R.id.surfaceView);
@@ -68,8 +78,17 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                 takeImage();
             }
         });
+        
+        record = (Button) findViewById(R.id.btnRecord);
+        record.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startRecording();
+            }
+        });
+
         flashmode = false;
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
         if (!getBaseContext().getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_CAMERA_FLASH)) {
             flashCameraButton.setVisibility(View.GONE);
@@ -94,6 +113,7 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
     protected void onPause() {
         super.onPause();
         sensorManager.unregisterListener(this);
+        videoRecorder.release();
     }
 
     private void setUpCamera(Camera c) {
@@ -101,8 +121,6 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
         Camera.getCameraInfo(0, info);
         rotation = getWindowManager().getDefaultDisplay().getRotation();
         Camera.Parameters params = c.getParameters();
-//        params.setPictureSize (3264, 2448);
-// params.setPictureSize(height, width); 3264 x 2448 -> 8MP
 
         int degree = 0;
         switch (rotation) {
@@ -125,11 +143,6 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
 
         rotation = (info.orientation - degree + 360) % 360;
         c.setDisplayOrientation(rotation);
-        //Parameters params = c.getParameters();
-
-//        params.setPictureSize (1920, 2560);
-//
-//        c.setParameters(params);
 
         showFlashButton(params);
 
@@ -149,37 +162,9 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
 
     }
 
-    private void releaseCamera() {
-        try {
-            if (camera != null) {
-                camera.setPreviewCallback(null);
-                camera.setErrorCallback(null);
-                camera.stopPreview();
-                camera.release();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            camera = null;
-        }
-    }
-
-    /*@Override
-    public void onClick(View v) {
-        switch (v.getId()) {
-            case R.id.flash:
-                flashOnButton();
-                break;
-            case R.id.captureImage:
-                takeImage();
-                break;
-
-            default:
-                break;
-        }
-    }*/
-
     private void takeImage() {
+        record.setEnabled(false);
+
         camera.autoFocus(new Camera.AutoFocusCallback() {
             @Override
             public void onAutoFocus(boolean b, Camera camera) {
@@ -200,7 +185,7 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                             String imageName = "IMG_" + new SimpleDateFormat("yyyyMMdd_HHmmss")
                                     .format(new Date()) + ".jpg";
                             File mkDir = new File(Environment.getExternalStorageDirectory()
-                                    .getAbsolutePath(), "/DCIM/LocationFinder");
+                                    .getAbsolutePath() + "/DCIM/LocationFinder");
                             if (!mkDir.exists()) {
                                 if (!mkDir.mkdirs()) {
                                     Log.i(TAG, "could not make directories");
@@ -248,6 +233,8 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                 } else Log.e(TAG, "could not focus");
             }
         });
+
+        record.setEnabled(true);
     }
 
     private void alertCameraDialog() {
@@ -367,6 +354,8 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
         camera.setParameters(parameters);
 
         preview = new CameraPreview(this, camera);
+        
+        initRecorder();
 
         cameraView.addView(preview);
     }
@@ -399,6 +388,47 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                         Toast.LENGTH_SHORT).show();
                 Log.e(TAG, "permission denied");
             }
+        }
+    }
+
+    private void initRecorder() {
+        videoRecorder = new MediaRecorder();
+        videoRecorder.setCamera(camera);
+        videoRecorder.setVideoSource(MediaRecorder.VideoSource.DEFAULT);
+        videoRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+        videoRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.MPEG_4_SP);
+        videoRecorder.setMaxDuration(30000);
+    }
+
+    private void prepareRecorder() {
+        videoRecorder.setOrientationHint(getWindowManager().getDefaultDisplay().getRotation());
+        videoRecorder.setPreviewDisplay(preview.getSurfaceHolder().getSurface());
+        videoRecorder.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() +
+                "/DCIM/LocationFinder/VID_" + new SimpleDateFormat("yyyyMMdd_HHmmss")
+                .format(new Date()) + ".mp4");
+        try {
+            videoRecorder.prepare();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void startRecording() {
+        if (!camMode) {
+            camMode = true;
+            captureImage.setEnabled(false);
+            camera.unlock();
+            prepareRecorder();
+            videoRecorder.start();
+            record.setText(R.string.btnRecord);
+        } else {
+            camMode = false;
+            videoRecorder.stop();
+            record.setText(R.string.btnStop);
+            camera.lock();
+            captureImage.setEnabled(true);
+
+            initRecorder();
         }
     }
 }

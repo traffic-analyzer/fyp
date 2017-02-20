@@ -39,4 +39,6 @@
     <string name="strQuestion">How is traffic situation ahead?</string>
     <string name="btnCapture">capture</string>
     <string name="btnFlash">flash</string>
+    <string name="btnRecord">record</string>
+    <string name="btnStop">stop</string>
 </resources>
