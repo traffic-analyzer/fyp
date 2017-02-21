@@ -82,15 +82,15 @@ public class BackgroundLocationService extends Service implements LocationListen
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent != null) {
+        /*if (intent != null) {
             if (intent.getStringExtra("alarm") != null) {
                 String message = intent.getStringExtra("alarm");
                 Log.i(TAG, "alarm said, " + message);
             }
-        }
-        Message msg = locationHandler.obtainMessage();
+        }*/
+        /*Message msg = locationHandler.obtainMessage();
         msg.arg1 = startId;
-        locationHandler.sendMessage(msg);
+        locationHandler.sendMessage(msg);*/
 
         locationHandler.post(new Runnable() {
             @Override

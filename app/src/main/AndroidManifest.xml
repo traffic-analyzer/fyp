@@ -13,6 +13,7 @@
         android:name="android.permission.FLASHLIGHT"
         android:permissionGroup="android.permission-group.HARDWARE_CONTROLS"
         android:protectionLevel="normal" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
 
     <!-- To auto-complete the email text field in the login form with the user's emails -->

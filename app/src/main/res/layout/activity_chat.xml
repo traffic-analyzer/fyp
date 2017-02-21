@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/activity_chat"
     android:layout_width="match_parent"
@@ -8,8 +8,7 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="com.nuces.ateebahmed.locationfinder.ChatActivity"
-    android:orientation="vertical">
+    tools:context="com.nuces.ateebahmed.locationfinder.ChatActivity">
 
     <TextView
         android:layout_width="match_parent"
@@ -23,31 +22,71 @@
 
     <Button
         android:text="@string/strBlocked"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/btnBlocked"/>
+        android:id="@+id/btnBlocked"
+        android:layout_below="@+id/txtQuestion"
+        android:layout_marginLeft="44dp"
+        android:layout_marginStart="44dp" />
 
     <Button
         android:text="@string/strSlow"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/btnSlow" />
+        android:id="@+id/btnSlow"
+        android:layout_below="@+id/txtQuestion"
+        android:layout_toRightOf="@+id/btnBlocked"
+        android:layout_toEndOf="@+id/btnBlocked"
+        android:layout_marginLeft="48dp"
+        android:layout_marginStart="48dp" />
 
     <Button
         android:text="@string/strNormal"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/btnNormal" />
+        android:id="@+id/btnNormal"
+        android:layout_below="@+id/btnBlocked"
+        android:layout_alignLeft="@+id/btnBlocked"
+        android:layout_alignStart="@+id/btnBlocked" />
 
     <Button
         android:text="@string/strLow"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/btnSpeedy" />
+        android:id="@+id/btnSpeedy"
+        android:layout_below="@+id/btnSlow"
+        android:layout_alignLeft="@+id/btnSlow"
+        android:layout_alignStart="@+id/btnSlow"
+        android:layout_alignRight="@+id/btnSlow"
+        android:layout_alignEnd="@+id/btnSlow" />
 
     <Button
         android:text="@string/strNone"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/btnNone"
+        android:layout_below="@+id/btnNormal"
+        android:layout_alignLeft="@+id/btnNormal"
+        android:layout_alignStart="@+id/btnNormal"
+        android:layout_alignRight="@+id/btnSlow"
+        android:layout_alignEnd="@+id/btnSlow" />
+
+    <android.support.v7.widget.SwitchCompat
+        android:id="@+id/swtchRecord"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/btnNone"
+        android:layout_marginTop="96dp"
+        android:layout_centerInParent="true" />
+
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:id="@+id/btnNone" />
-</LinearLayout>
+        android:id="@+id/txtRecord"
+        android:text="@string/tglRecord"
+        android:textSize="24sp"
+        android:gravity="center_horizontal"
+        android:textColor="#000"
+        android:layout_below="@+id/swtchRecord"
+        android:layout_marginTop="@dimen/activity_horizontal_margin" />
+</RelativeLayout>

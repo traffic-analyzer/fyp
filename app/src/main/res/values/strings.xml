@@ -41,4 +41,5 @@
     <string name="btnFlash">flash</string>
     <string name="btnRecord">record</string>
     <string name="btnStop">stop</string>
+    <string name="tglRecord">Switch to record audio</string>
 </resources>
