@@ -16,6 +16,7 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Parcelable;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
@@ -58,6 +59,7 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.io.File;
@@ -74,7 +76,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected static final String ACTION = "com.nuces.ateebahmed.locationfinder.MapsActivity";
     private static final String TAG = "MapsActivity";
 
-    private BroadcastReceiver locationBroacastReceiver;
+    private BroadcastReceiver locationBroadcastReceiver;
     private LocalBroadcastManager localBroadcastManager;
 
     private LocationComponentsSingleton instance;
@@ -117,7 +119,26 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
+        session = new UserSession(getApplicationContext());
+        if (!session.isLoggedIn()) {
+            startSignInActivity();
+        }
+
+        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
+
         setInstance();
+
+        /*DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
+        if (session.isLoggedIn())
+            dbUser = dbRootRef.child("users").child(session.getDbKey()).getRef();*/
+
+        localBroadcastManager = LocalBroadcastManager.getInstance(this);
+        setLocationBroacastReceiver();
+
+        startBackgroundService();
 
         searchBar = (Toolbar) findViewById(R.id.searchBar);
         setSupportActionBar(searchBar);
@@ -169,11 +190,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         /*txtChat = (TextView) findViewById(R.id.txtChat);
         */
 
-        session = new UserSession(getApplicationContext());
-        if (!session.isLoggedIn()) {
-            startSignInActivity();
-        }
-
         geofenceList = new ArrayList<>();
         statusResult = getStatusResult();
         userMarkers = new ArrayList<>();
@@ -183,11 +199,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         marker = null;
         circle = null;
 
-        /*DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
-        dbUsersRef = dbRootRef.child("users");
-        dbMessagesRef = dbRootRef.child("messages");
-        if (session.isLoggedIn())
-            dbUser = dbUsersRef.child(session.getDbKey()).getRef();*/
+        /*dbUsersRef = dbRootRef.child("users");
+        dbMessagesRef = dbRootRef.child("messages");*/
 
         /*btnSearchLocation.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -203,16 +216,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 saveMessageInDatabase();
             }
         });*/
-
-        localBroadcastManager = LocalBroadcastManager.getInstance(this);
-        setLocationBroacastReceiver();
-
-        startBackgroundService();
-
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
     }
 
     /**
@@ -258,7 +261,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onStop() {
         super.onStop();
-        sendLocationUpdateSignal(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
 //        detachMessageListener();
 //        detachUsersListener();
         /*removeUserMarkers();
@@ -268,7 +270,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onPause() {
         super.onPause();
-        localBroadcastManager.unregisterReceiver(locationBroacastReceiver);
+        sendLocationUpdateSignal(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        localBroadcastManager.unregisterReceiver(locationBroadcastReceiver);
 //        detachMessageListener();
 //        detachUsersListener();
         if (!geofenceList.isEmpty()) {
@@ -287,7 +290,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             attachMessageListener();
             attachUsersListener();
         }*/
-        localBroadcastManager.registerReceiver(locationBroacastReceiver,
+        localBroadcastManager.registerReceiver(locationBroadcastReceiver,
                 new IntentFilter(BackgroundLocationService.ACTION));
         instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         checkLocSettings();
@@ -832,7 +835,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void setLocationBroacastReceiver() {
-        locationBroacastReceiver = new LocationBroadcastReceiver();
+        locationBroadcastReceiver = new LocationBroadcastReceiver();
     }
 
     private boolean isServiceRunning() {
@@ -849,7 +852,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         Log.i(TAG, isServiceRunning() + "");
         if (!isServiceRunning()) {
             Intent i = new Intent(this, BackgroundLocationService.class);
-            i.putExtra("message", "gimme location");
             startService(i);
         }
     }

@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.annotation.NonNull;
@@ -22,10 +23,16 @@ import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
 
+import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -34,7 +41,9 @@ import models.Message;
 
 public class ChatActivity extends AppCompatActivity {
 
-    private static final String TAG = "ChatActivity";
+    private static final String TAG = "ChatActivity",
+            AUD_DIR_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() +
+                    "/LocationFinder";
     private Button btnBlocked, btnSlow, btnNormal, btnSpeedy, btnNone;
     private LocationComponentsSingleton instance;
     private LocalBroadcastManager localBroadcastManager;
@@ -45,6 +54,8 @@ public class ChatActivity extends AppCompatActivity {
     private SwitchCompat swtchRecord;
     private final int REQUEST_CODE_AUDIO = 3;
     private MediaRecorder audioRecorder;
+    private File audioFile;
+    private StorageReference audioStorageRef;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +70,7 @@ public class ChatActivity extends AppCompatActivity {
 
         dbMessagesRef = FirebaseDatabase.getInstance().getReference().child("messages");
 
+        audioStorageRef = FirebaseStorage.getInstance().getReference().child("audio");
 
         btnBlocked = (Button) findViewById(R.id.btnBlocked);
         btnSlow = (Button) findViewById(R.id.btnSlow);
@@ -211,8 +223,10 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void startRecording() {
-        audioRecorder.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() +
-                "/AUD_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".3gp");
+        createDirs();
+        audioFile = new File(AUD_DIR_PATH + "/AUD_" + new SimpleDateFormat("yyyyMMdd_HHmmss")
+                .format(new Date()) + ".3gp");
+        audioRecorder.setOutputFile(audioFile.getAbsolutePath());
         try {
             audioRecorder.prepare();
             audioRecorder.start();
@@ -225,6 +239,45 @@ public class ChatActivity extends AppCompatActivity {
     private void stopRecording() {
         audioRecorder.stop();
         audioRecorder.release();
+
+        uploadAudioToStorage();
+    }
+
+    private void createDirs() {
+        File mkDir = new File(AUD_DIR_PATH);
+        if (!mkDir.exists()) {
+            if (!mkDir.mkdirs()) {
+                Log.w(TAG, "could not make directories");
+            }
+        }
+    }
+
+    private void uploadAudioToStorage() {
+        audioStorageRef.child(audioFile.getName()).putFile(Uri.fromFile(audioFile))
+                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        if (taskSnapshot.getDownloadUrl() != null)
+                            if (session.isLoggedIn()) {
+                                Message msg = new Message(session.getSPUsername(),
+                                        location.getLongitude(), location.getLatitude(),
+                                        System.currentTimeMillis());
+                                msg.setAudio(taskSnapshot.getDownloadUrl().toString());
+                                dbMessagesRef.push().setValue(msg);
+
+                                Toast.makeText(ChatActivity.this,
+                                        "Thank you! Your response has been recorded",
+                                        Toast.LENGTH_LONG).show();
+                            }
+                    }
+                }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Toast.makeText(ChatActivity.this, "There was a problem in uploading your response!",
+                        Toast.LENGTH_LONG).show();
+                Log.e(TAG, e.getMessage());
+            }
+        });
     }
 
     private final class LocationBroadcastReceiver extends BroadcastReceiver {

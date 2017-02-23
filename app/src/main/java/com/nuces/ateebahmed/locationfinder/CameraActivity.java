@@ -2,9 +2,12 @@ package com.nuces.ateebahmed.locationfinder;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
@@ -12,15 +15,18 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.Location;
 import android.media.AudioManager;
 import android.media.ExifInterface;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.ContextThemeWrapper;
@@ -32,6 +38,14 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -39,9 +53,13 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
+import models.Message;
+
 public class CameraActivity extends AppCompatActivity implements SensorEventListener {
 
-    private final String TAG = "CameraActivity";
+    private final String TAG = "CameraActivity",
+            IMG_DIR_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() +
+                    "/DCIM/LocationFinder";
     private CameraPreview preview;
     private Camera camera;
     private Button flashCameraButton, captureImage, record;
@@ -52,6 +70,12 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
     private MediaRecorder videoRecorder;
     private LocationComponentsSingleton instance;
     private final int CAMERA_REQUEST_CODE = 1;
+    private StorageReference mediaStorageRef, imageStorageRef, videoStorageRef;
+    private UserSession session;
+    private Location loc;
+    private DatabaseReference dbMessagesRef;
+    private BroadcastReceiver locationBroadcastReceiver;
+    private String videoFileName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,6 +89,18 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
         setContentView(R.layout.activity_camera);
 
         instance = LocationComponentsSingleton.getInstance(getApplicationContext());
+
+        locationBroadcastReceiver = new LocationBroadcastReceiver();
+
+        mediaStorageRef = FirebaseStorage.getInstance().getReference();
+
+        imageStorageRef = mediaStorageRef.child("images");
+
+        videoStorageRef = mediaStorageRef.child("videos");
+
+        dbMessagesRef = FirebaseDatabase.getInstance().getReference().child("messages");
+
+        session = new UserSession(getApplicationContext());
 
         camMode = false;
 
@@ -107,11 +143,14 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
             sensorManager.registerListener(this, sensorManager
                     .getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_UI);
         }
+        LocalBroadcastManager.getInstance(this).registerReceiver(locationBroadcastReceiver,
+                new IntentFilter(BackgroundLocationService.ACTION));
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(locationBroadcastReceiver);
         sensorManager.unregisterListener(this);
         videoRecorder.release();
     }
@@ -177,24 +216,13 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                             am.playSoundEffect(AudioManager.FLAG_PLAY_SOUND);
                         }
                     }, null, new Camera.PictureCallback() {
-
-                        private File imageFile;
-
                         @Override
                         public void onPictureTaken(byte[] data, Camera camera) {
+
                             String imageName = "IMG_" + new SimpleDateFormat("yyyyMMdd_HHmmss")
                                     .format(new Date()) + ".jpg";
-                            File mkDir = new File(Environment.getExternalStorageDirectory()
-                                    .getAbsolutePath() + "/DCIM/LocationFinder");
-                            if (!mkDir.exists()) {
-                                if (!mkDir.mkdirs()) {
-                                    Log.i(TAG, "could not make directories");
-                                    return;
-                                }
-                            }
 
-                            imageFile = new File(Environment.getExternalStorageDirectory()
-                                    .getAbsolutePath(), "/DCIM/LocationFinder/" + imageName);
+                            File imageFile = new File(IMG_DIR_PATH + "/" + imageName);
 
                             FileOutputStream fos = null;
                             try {
@@ -206,9 +234,7 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                             }
 
                             try {
-                                ExifInterface exif = new ExifInterface(Environment
-                                        .getExternalStorageDirectory() + "/DCIM/LocationFinder/" +
-                                        imageName);
+                                ExifInterface exif = new ExifInterface(imageFile.getAbsolutePath());
                                 exif.setAttribute(ExifInterface.TAG_ORIENTATION,
                                         String.valueOf(orientation));
                                 exif.saveAttributes();
@@ -228,6 +254,7 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
                             Log.i(TAG, "captured");
 
+                            uploadPictureToStorage(imageFile);
                         }
                     });
                 } else Log.e(TAG, "could not focus");
@@ -358,6 +385,8 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
         initRecorder();
 
         cameraView.addView(preview);
+
+        createDirs();
     }
 
     private boolean areCameraPermissionsAllowed() {
@@ -401,11 +430,10 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
     }
 
     private void prepareRecorder() {
+        videoFileName = "VID_" + new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date()) + ".mp4";
         videoRecorder.setOrientationHint(getWindowManager().getDefaultDisplay().getRotation());
         videoRecorder.setPreviewDisplay(preview.getSurfaceHolder().getSurface());
-        videoRecorder.setOutputFile(Environment.getExternalStorageDirectory().getAbsolutePath() +
-                "/DCIM/LocationFinder/VID_" + new SimpleDateFormat("yyyyMMdd_HHmmss")
-                .format(new Date()) + ".mp4");
+        videoRecorder.setOutputFile(IMG_DIR_PATH + "/" + videoFileName);
         try {
             videoRecorder.prepare();
         } catch (IOException e) {
@@ -428,7 +456,91 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
             camera.lock();
             captureImage.setEnabled(true);
 
+            uploadVideoToStorage();
+
             initRecorder();
+        }
+    }
+
+    private void createDirs() {
+        File mkDir = new File(IMG_DIR_PATH);
+        if (!mkDir.exists()) {
+            if (!mkDir.mkdirs()) {
+                Log.w(TAG, "could not make directories");
+            }
+        }
+    }
+
+    private void uploadVideoToStorage() {
+        videoStorageRef.child(videoFileName).putFile(Uri.fromFile(new File(IMG_DIR_PATH + "/" +
+                videoFileName))).addOnSuccessListener(this,
+                new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        if (taskSnapshot.getDownloadUrl() != null) {
+                            if (session.isLoggedIn()) {
+                                Message msg = new Message(session.getSPUsername(),
+                                        loc.getLongitude(), loc.getLatitude(),
+                                        System.currentTimeMillis());
+                                msg.setVideo(taskSnapshot.getDownloadUrl().toString());
+
+                                dbMessagesRef.push().setValue(msg);
+
+                                Toast.makeText(CameraActivity.this, "Thank you! Your response "
+                                        + "has been recorded", Toast.LENGTH_LONG).show();
+                            }
+                        }
+                    }
+                }).addOnFailureListener(this, new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Toast.makeText(CameraActivity.this, "There was an error uploading your response",
+                        Toast.LENGTH_LONG).show();
+                Log.e(TAG, e.getMessage());
+            }
+        });
+    }
+
+    private void uploadPictureToStorage(File imageFile) {
+        imageStorageRef.child(imageFile.getName()).putFile(Uri.fromFile(imageFile))
+                .addOnSuccessListener(CameraActivity.this,
+                        new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                            @Override
+                            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot)
+                            {
+                                if (taskSnapshot.getDownloadUrl() != null) {
+                                    if (session.isLoggedIn()) {
+                                        Message msg = new Message(session.getSPUsername(),
+                                                loc.getLongitude(), loc.getLatitude(),
+                                                System.currentTimeMillis());
+                                        msg.setImage(taskSnapshot.getDownloadUrl()
+                                                .toString());
+
+                                        dbMessagesRef.push().setValue(msg);
+
+                                        Toast.makeText(CameraActivity.this,
+                                                "Thank you! Your response has been recorded",
+                                                Toast.LENGTH_LONG).show();
+                                    }
+                                }
+                            }
+                        }).addOnFailureListener(CameraActivity.this, new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Toast.makeText(CameraActivity.this,
+                                "There was a problem in uploading your response!",
+                                Toast.LENGTH_LONG).show();
+                        Log.e(TAG, e.getMessage());
+                    }
+                });
+    }
+
+    private final class LocationBroadcastReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getExtras().get("location") != null) {
+                loc = (Location) intent.getExtras().get("location");
+            }
         }
     }
 }

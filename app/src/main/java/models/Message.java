@@ -6,15 +6,23 @@ package models;
 
 public class Message {
 
-    private String message, username;
+    private String message, username, image, video, audio;
     private double longitude, latitude;
     private long timestamp;
 
     public Message() {
     }
 
-    public Message(String message, String username, double longitude, double latitude, long timestamp) {
+    public Message(String message, String username, double longitude, double latitude,
+                   long timestamp) {
         this.message = message;
+        this.username = username;
+        this.longitude = longitude;
+        this.latitude = latitude;
+        this.timestamp = timestamp;
+    }
+
+    public Message(String username, double longitude, double latitude, long timestamp) {
         this.username = username;
         this.longitude = longitude;
         this.latitude = latitude;
@@ -59,5 +67,29 @@ public class Message {
 
     public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public String getImage() {
+        return image;
+    }
+
+    public void setImage(String image) {
+        this.image = image;
+    }
+
+    public String getVideo() {
+        return video;
+    }
+
+    public void setVideo(String video) {
+        this.video = video;
+    }
+
+    public String getAudio() {
+        return audio;
+    }
+
+    public void setAudio(String audio) {
+        this.audio = audio;
     }
 }

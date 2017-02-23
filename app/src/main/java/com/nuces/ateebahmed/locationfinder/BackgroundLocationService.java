@@ -31,6 +31,8 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import static android.R.drawable.ic_menu_mylocation;
 
@@ -50,6 +52,7 @@ public class BackgroundLocationService extends Service implements LocationListen
     private final int NID = 10;
     private LocationComponentsSingleton instance;
     private BroadcastReceiver locationPermissionReceiver;
+    private DatabaseReference dbUserRef;
 
     public BackgroundLocationService() {
     }
@@ -70,6 +73,10 @@ public class BackgroundLocationService extends Service implements LocationListen
                         .getInstance(BackgroundLocationService.this);
                 setLocationSignalReceiver();
                 setInstance();
+                UserSession session = new UserSession(getApplicationContext());
+                if (session.isLoggedIn())
+                    dbUserRef = FirebaseDatabase.getInstance().getReference().child("users")
+                            .child(session.getDbKey());
             }
         });
     }
@@ -218,6 +225,9 @@ public class BackgroundLocationService extends Service implements LocationListen
     }
 
     private void sendNewLocation(Location location) {
+        dbUserRef.child("latitude").setValue(location.getLatitude());
+        dbUserRef.child("longitude").setValue(location.getLongitude());
+
         Intent i = new Intent(ACTION);
         i.putExtra("location", location);
         localBroadcastManager.sendBroadcast(i);
