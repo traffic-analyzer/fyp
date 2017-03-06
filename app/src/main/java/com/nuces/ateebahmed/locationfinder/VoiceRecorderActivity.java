@@ -1,6 +1,5 @@
 package com.nuces.ateebahmed.locationfinder;
 
-import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -18,14 +17,11 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.SwitchCompat;
 import android.util.Log;
-import android.view.View;
-import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.storage.FirebaseStorage;
@@ -39,12 +35,11 @@ import java.util.Date;
 
 import models.Message;
 
-public class ChatActivity extends AppCompatActivity {
+public class VoiceRecorderActivity extends AppCompatActivity {
 
-    private static final String TAG = "ChatActivity",
+    private static final String TAG = "TextMessageActivity",
             AUD_DIR_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() +
                     "/LocationFinder";
-    private Button btnBlocked, btnSlow, btnNormal, btnSpeedy, btnNone;
     private LocationComponentsSingleton instance;
     private LocalBroadcastManager localBroadcastManager;
     private BroadcastReceiver locationReceiver;
@@ -60,31 +55,19 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_chat);
+        setContentView(R.layout.activity_voice_recorder);
 
         setInstance();
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
-        locationReceiver = new LocationBroadcastReceiver();
+        locationReceiver = new VoiceRecorderActivity.LocationBroadcastReceiver();
 
         session = new UserSession(getApplicationContext());
 
         dbMessagesRef = FirebaseDatabase.getInstance().getReference().child("messages");
-
         audioStorageRef = FirebaseStorage.getInstance().getReference().child("audio");
-
-        btnBlocked = (Button) findViewById(R.id.btnBlocked);
-        btnSlow = (Button) findViewById(R.id.btnSlow);
-        btnNormal = (Button) findViewById(R.id.btnNormal);
-        btnSpeedy = (Button) findViewById(R.id.btnSpeedy);
-        btnNone = (Button) findViewById(R.id.btnNone);
 
         swtchRecord = (SwitchCompat) findViewById(R.id.swtchRecord);
 
-        btnBlocked.setOnClickListener(onButtonPressed());
-        btnSlow.setOnClickListener(onButtonPressed());
-        btnNormal.setOnClickListener(onButtonPressed());
-        btnSpeedy.setOnClickListener(onButtonPressed());
-        btnNone.setOnClickListener(onButtonPressed());
         swtchRecord.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
@@ -114,86 +97,21 @@ public class ChatActivity extends AppCompatActivity {
         localBroadcastManager.unregisterReceiver(locationReceiver);
     }
 
-    private View.OnClickListener onButtonPressed() {
-        return new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                switch (view.getId()) {
-                    case R.id.btnBlocked:
-                        sendMessage((Button) view);
-                        break;
-                    case R.id.btnSlow:
-                        sendMessage((Button) view);
-                        break;
-                    case R.id.btnNormal:
-                        sendMessage((Button) view);
-                        break;
-                    case R.id.btnSpeedy:
-                        sendMessage((Button) view);
-                        break;
-                    case R.id.btnNone:
-                        sendMessage((Button) view);
-                        break;
-                    default:
-                        try {
-                            throw new Exception("Undefined button id");
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                        break;
-                }
-            }
-        };
-    }
-
-    private void showButtonToast(Button b) {
-        Toast.makeText(this, b.getText().toString() + " was pressed", Toast.LENGTH_SHORT).show();
-    }
-
     private void setInstance() {
         if (instance == null) {
             instance = LocationComponentsSingleton.getInstance(this);
         }
     }
 
-    private void sendMessage(Button b) {
-        if (location != null) {
-            Message msg = new Message(b.getText().toString(), session.getSPUsername(),
-                    location.getLongitude(), location.getLatitude(), System.currentTimeMillis());
-            dbMessagesRef.push().setValue(msg, new DatabaseReference.CompletionListener() {
-                @Override
-                public void onComplete(DatabaseError databaseError,
-                                       DatabaseReference databaseReference) {
-                    if (databaseError != null) {
-                        Toast.makeText(ChatActivity.this,
-                                "Could not send your response. Error code: " +
-                                        databaseError.getCode(), Toast.LENGTH_SHORT).show();
-                        Log.e(TAG, databaseError.getCode() + ": " + databaseError.getMessage() +
-                                " Key: " + databaseReference.getKey());
-                    } else {
-                        Toast.makeText(ChatActivity.this, "Thank you for your response",
-                                Toast.LENGTH_SHORT).show();
-                        Log.i(TAG, "Message sent");
-                    }
-                }
-            });
-            finish();
-        } else {
-            Toast.makeText(this, "Enable location before sending your response", Toast.LENGTH_LONG)
-                    .show();
-            Log.e(TAG, "location not available");
-        }
-    }
-
     private boolean isRecordingAllowed() {
         return (ContextCompat.checkSelfPermission(getApplicationContext(),
-                Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
+                android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
     }
 
     private void getRecordingPermission() {
         if (!isRecordingAllowed())
-            ActivityCompat.requestPermissions(this, new String[] {Manifest.permission.RECORD_AUDIO},
-                    REQUEST_CODE_AUDIO);
+            ActivityCompat.requestPermissions(this, new String[]
+                            {android.Manifest.permission.RECORD_AUDIO}, REQUEST_CODE_AUDIO);
         else startRecording();
     }
 
@@ -265,7 +183,7 @@ public class ChatActivity extends AppCompatActivity {
                                 msg.setAudio(taskSnapshot.getDownloadUrl().toString());
                                 dbMessagesRef.push().setValue(msg);
 
-                                Toast.makeText(ChatActivity.this,
+                                Toast.makeText(VoiceRecorderActivity.this,
                                         "Thank you! Your response has been recorded",
                                         Toast.LENGTH_LONG).show();
                             }
@@ -273,8 +191,8 @@ public class ChatActivity extends AppCompatActivity {
                 }).addOnFailureListener(new OnFailureListener() {
             @Override
             public void onFailure(@NonNull Exception e) {
-                Toast.makeText(ChatActivity.this, "There was a problem in uploading your response!",
-                        Toast.LENGTH_LONG).show();
+                Toast.makeText(VoiceRecorderActivity.this,
+                        "There was a problem in uploading your response!", Toast.LENGTH_LONG).show();
                 Log.e(TAG, e.getMessage());
             }
         });

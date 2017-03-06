@@ -1,53 +1,108 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    android:layout_height="match_parent">
 
     <FrameLayout
         android:id="@+id/surfaceView"
-        android:layout_width="fill_parent"
-        android:layout_height="fill_parent"
-        android:background="#000"/>
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@android:color/darker_gray" />
 
-    <Button
+    <android.support.v7.widget.AppCompatImageButton
         android:id="@+id/captureImage"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
-        android:layout_marginBottom="24dp"
-        android:layout_alignParentLeft="@+id/flash"
-        android:layout_alignParentStart="@+id/flash"
-        android:layout_marginLeft="24dp"
-        android:layout_marginStart="24dp"
-        android:text="@string/btnCapture"/>
-        <!--android:background="@drawable/btn_broadcast_selected" />-->
+        android:layout_marginTop="@dimen/camera_button_margin"
+        android:layout_marginBottom="@dimen/camera_button_margin"
+        android:layout_marginLeft="@dimen/material_design_button_margin"
+        android:layout_marginStart="@dimen/material_design_button_margin"
+        android:layout_marginEnd="@dimen/material_design_button_margin"
+        android:layout_marginRight="@dimen/material_design_button_margin"
+        android:paddingLeft="@dimen/material_design_button_padding"
+        android:paddingRight="@dimen/material_design_button_padding"
+        android:paddingEnd="@dimen/material_design_button_padding"
+        android:paddingStart="@dimen/material_design_button_padding"
+        android:height="@dimen/material_design_button_height"
+        android:minWidth="@dimen/material_design_button_min_width"
+        android:src="@drawable/ic_capture"
+        android:background="@null" />
 
-    <Button
+    <android.support.v7.widget.AppCompatImageButton
         android:id="@+id/flash"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_marginBottom="24dp"
-        android:layout_marginLeft="24dp"
-        android:layout_marginStart="24dp"
         android:layout_alignParentLeft="true"
         android:layout_alignParentStart="true"
-        android:text="@string/btnFlash"/>
-        <!--android:background="@drawable/btn_flash" />-->
+        android:layout_marginTop="@dimen/camera_button_margin"
+        android:layout_marginBottom="@dimen/camera_button_margin"
+        android:layout_marginLeft="@dimen/material_design_button_margin"
+        android:layout_marginStart="@dimen/material_design_button_margin"
+        android:layout_marginEnd="@dimen/material_design_button_margin"
+        android:layout_marginRight="@dimen/material_design_button_margin"
+        android:paddingLeft="@dimen/material_design_button_padding"
+        android:paddingRight="@dimen/material_design_button_padding"
+        android:paddingEnd="@dimen/material_design_button_padding"
+        android:paddingStart="@dimen/material_design_button_padding"
+        android:height="@dimen/material_design_button_height"
+        android:minWidth="@dimen/material_design_button_min_width"
+        android:src="@drawable/ic_flash_on"
+        android:background="@null" />
 
-    <Button
+    <android.support.v7.widget.AppCompatImageButton
         android:id="@+id/btnRecord"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_marginBottom="24dp"
-        android:layout_marginRight="24dp"
-        android:layout_marginEnd="24dp"
+        android:layout_centerHorizontal="true"
+        android:visibility="gone"
+        android:layout_marginTop="@dimen/activity_vertical_margin"
+        android:layout_marginBottom="@dimen/activity_vertical_margin"
+        android:layout_marginLeft="@dimen/material_design_button_margin"
+        android:layout_marginStart="@dimen/material_design_button_margin"
+        android:layout_marginEnd="@dimen/material_design_button_margin"
+        android:layout_marginRight="@dimen/material_design_button_margin"
+        android:paddingLeft="@dimen/material_design_button_padding"
+        android:paddingRight="@dimen/material_design_button_padding"
+        android:paddingEnd="@dimen/material_design_button_padding"
+        android:paddingStart="@dimen/material_design_button_padding"
+        android:height="@dimen/material_design_button_height"
+        android:minWidth="@dimen/material_design_button_min_width"
+        android:src="@drawable/ic_record_on"
+        android:background="@null" />
+
+    <android.support.v7.widget.LinearLayoutCompat
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
         android:layout_alignParentEnd="true"
-        android:text="@string/btnRecord"/>
+        android:orientation="horizontal"
+        android:layout_marginTop="@dimen/camera_button_margin"
+        android:layout_marginBottom="@dimen/camera_button_margin"
+        android:paddingLeft="@dimen/material_design_button_padding"
+        android:paddingRight="@dimen/material_design_button_padding"
+        android:paddingEnd="@dimen/material_design_button_padding"
+        android:paddingStart="@dimen/material_design_button_padding">
+
+        <android.support.v7.widget.AppCompatImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_camera" />
+
+        <android.support.v7.widget.SwitchCompat
+            android:id="@+id/swtCameraMode"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
+
+        <android.support.v7.widget.AppCompatImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_video"/>
+
+    </android.support.v7.widget.LinearLayoutCompat>
 
 </RelativeLayout>

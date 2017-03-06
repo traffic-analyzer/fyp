@@ -2,6 +2,7 @@ package com.nuces.ateebahmed.locationfinder;
 
 import android.content.Context;
 import android.hardware.Camera;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
@@ -36,8 +37,9 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
     public void surfaceCreated(SurfaceHolder surfaceHolder) {
 
         try {
+            Log.i(TAG, "created");
             camera.setDisplayOrientation(90);
-            camera.setPreviewDisplay(surfaceHolder);
+            camera.setPreviewDisplay(this.surfaceHolder);
             camera.startPreview();
         } catch (IOException e) {
             e.printStackTrace();
@@ -50,7 +52,7 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
             return;
         camera.stopPreview();
         try {
-            camera.setPreviewDisplay(surfaceHolder);
+            camera.setPreviewDisplay(this.surfaceHolder);
             camera.startPreview();
         } catch (IOException e) {
             e.printStackTrace();
@@ -59,6 +61,7 @@ public class CameraPreview extends SurfaceView implements SurfaceHolder.Callback
 
     @Override
     public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
+        Log.i(TAG, "destroyed");
         camera.stopPreview();
         camera.release();
     }

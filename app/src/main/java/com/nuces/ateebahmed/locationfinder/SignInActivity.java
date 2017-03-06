@@ -1,9 +1,17 @@
 package com.nuces.ateebahmed.locationfinder;
 
+import android.content.Context;
 import android.content.Intent;
+import android.location.Location;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.design.widget.TextInputEditText;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.net.ConnectivityManagerCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.AppCompatButton;
 import android.text.Editable;
 import android.text.Spannable;
 import android.text.TextWatcher;
@@ -31,13 +39,15 @@ import models.User;
 
 public class SignInActivity extends AppCompatActivity {
 
-    private EditText etUsername, etPassLogin;
-    private Button btnLogin;
-    private DatabaseReference dbUsersRef;
+    private TextInputEditText etUsername, etPassLogin;
+    private AppCompatButton btnLogin;
+    private DatabaseReference dbUsersRef, conRef;
+    private ValueEventListener usernameListener, connectionListener;
     private UserSession session;
     private FirebaseAuth userAuth;
     private FirebaseAuth.AuthStateListener userAuthListener;
     private User mUser;
+    private boolean isConnected;
 
 
     @Override
@@ -45,25 +55,27 @@ public class SignInActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_signin);
 
-        DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
-        dbUsersRef = dbRootRef.child("users");
+        addConnectionListener();
 
-        userAuth = FirebaseAuth.getInstance();
+        getInstances();
+
+        usernameListener = usernameAvailable();
+
         userAuthListener = new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
                 FirebaseUser fUser = firebaseAuth.getCurrentUser();
                 if (fUser != null && mUser != null) {
-                    session.createSession(mUser.getUsername(), fUser.getUid());
+                    session.createSession(mUser.getUsername(), fUser.getUid(), mUser.getEmail());
                     startMapsActivity();
                 }
             }
         };
 
         TextView regLink = (TextView) findViewById(R.id.regLink);
-        etUsername = (EditText) findViewById(R.id.etUsername);
-        etPassLogin = (EditText) findViewById(R.id.etPassLogin);
-        btnLogin = (Button) findViewById(R.id.btnLogin);
+        etUsername = (TextInputEditText) findViewById(R.id.etUsername);
+        etPassLogin = (TextInputEditText) findViewById(R.id.etPassLogin);
+        btnLogin = (AppCompatButton) findViewById(R.id.btnLogin);
         btnLogin.setEnabled(false);
 
         regLink.setMovementMethod(LinkMovementMethod.getInstance());
@@ -73,6 +85,7 @@ public class SignInActivity extends AppCompatActivity {
             public void onClick(View widget) {
                 Intent register = new Intent(SignInActivity.this, RegisterActivity.class);
                 startActivity(register);
+                finish();
             }
         };
         span.setSpan(clickableSpan, 0, span.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -101,7 +114,7 @@ public class SignInActivity extends AppCompatActivity {
         btnLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                signinUser();
+                addUsernameListener();
             }
         });
 
@@ -117,12 +130,15 @@ public class SignInActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
+        removeUsernameListener();
         userAuth.removeAuthStateListener(userAuthListener);
+        removeConnectionListener();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        removeUsernameListener();
         userAuth.removeAuthStateListener(userAuthListener);
     }
 
@@ -155,49 +171,107 @@ public class SignInActivity extends AppCompatActivity {
         else btnLogin.setEnabled(true);
     }
 
-    private void signinUser() {
-        dbUsersRef.orderByChild("username").equalTo(etUsername.getText().toString().trim())
-                .addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot dataSnapshot) {
-                        if (existsInDatabase(dataSnapshot)) {
-                            userAuth.signInWithEmailAndPassword(mUser.getEmail(),
-                                    etPassLogin.getText().toString().trim())
-                                    .addOnCompleteListener(SignInActivity.this,
-                                            new OnCompleteListener<AuthResult>() {
-                                                @Override
-                                                public void onComplete(@NonNull Task<AuthResult> task) {
-                                                    Log.i("SIGNIN", "onComplete: " + task.isSuccessful());
-                                                    if (!task.isSuccessful()) {
-                                                        Log.e("SIGNIN", "Signin failed");
-                                                        Toast.makeText(SignInActivity.this,
-                                                                "We could not find you here!",
-                                                                Toast.LENGTH_SHORT).show();
-                                                    } else {
-                                                        Log.i("SIGNIN", "Signin successful");
-                                                        Toast.makeText(SignInActivity.this,
-                                                                "Great! Get started",
-                                                                Toast.LENGTH_SHORT).show();
-                                                    }
-                                                }
-                                            });
-                        } else {
-                            Log.e("SIGNIN", "Signin failed");
-                            Toast.makeText(SignInActivity.this, "We could not find you here!",
-                                    Toast.LENGTH_SHORT).show();
-                        }
-                    }
+    private void addUsernameListener() {
+        if (usernameListener == null)
+            usernameListener = usernameAvailable();
+        if (isConnected)
+            dbUsersRef.orderByChild("username").equalTo(etUsername.getText().toString().trim())
+                    .addListenerForSingleValueEvent(usernameListener);
+        else Toast.makeText(getApplicationContext(), "No Internet connection available",
+                Toast.LENGTH_LONG).show();
+    }
 
-                    @Override
-                    public void onCancelled(DatabaseError databaseError) {
-
-                    }
-                });
+    private void removeUsernameListener() {
+        if (usernameListener != null) {
+            dbUsersRef.orderByChild("username").equalTo(etUsername.getText().toString().trim())
+                    .removeEventListener(usernameListener);
+            usernameListener = null;
+        }
     }
 
     private void startMapsActivity() {
         Intent maps = new Intent(SignInActivity.this, MapsActivity.class);
         startActivity(maps);
         finish();
+    }
+
+    private ValueEventListener usernameAvailable() {
+        return new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (existsInDatabase(dataSnapshot))
+                    signInWithFirebaseAuth();
+                else {
+                Log.e("SIGNIN", "Signin failed");
+                Toast.makeText(SignInActivity.this, "We could not find you here!",
+                        Toast.LENGTH_SHORT).show();
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+            }
+        };
+    }
+
+    private void signInWithFirebaseAuth() {
+        userAuth.signInWithEmailAndPassword(mUser.getEmail(),
+                etPassLogin.getText().toString().trim())
+                .addOnCompleteListener(SignInActivity.this,
+                        new OnCompleteListener<AuthResult>() {
+                            @Override
+                            public void onComplete(@NonNull Task<AuthResult> task) {
+                                Log.i("SIGNIN", "onComplete: " + task.isSuccessful());
+                                if (!task.isSuccessful()) {
+                                    Log.e("SIGNIN", "Signin failed");
+                                    Toast.makeText(SignInActivity.this,
+                                            "We could not find you here!",
+                                            Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Log.i("SIGNIN", "Signin successful");
+                                    Toast.makeText(SignInActivity.this,
+                                            "Great! Get started",
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+    }
+
+    private void getInstances() {
+        if (isConnected) {
+            DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
+            dbUsersRef = dbRootRef.child("users");
+            userAuth = FirebaseAuth.getInstance();
+        }
+    }
+
+    private ValueEventListener checkConnectivity() {
+        return new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.getValue(Boolean.class))
+                    isConnected = true;
+                else isConnected = false;
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+            }
+        };
+    }
+
+    private void addConnectionListener() {
+        if (connectionListener == null)
+            connectionListener = checkConnectivity();
+        if (conRef == null)
+            conRef = FirebaseDatabase.getInstance().getReference(".info/connected");
+        conRef.addValueEventListener(connectionListener);
+    }
+
+    private void removeConnectionListener() {
+        if (connectionListener != null) {
+            conRef.removeEventListener(connectionListener);
+            connectionListener = null;
+        }
     }
 }

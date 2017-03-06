@@ -31,8 +31,12 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import static android.R.drawable.ic_menu_mylocation;
 
@@ -47,12 +51,17 @@ public class BackgroundLocationService extends Service implements LocationListen
             "com.ateebahmed.testingbackgroundlocation.BackgroundLocationService";
     private GoogleApiClient gClient;
     private LocationRequest locationRequest;
-    private NotificationCompat.Builder notification;
+    /*private NotificationCompat.Builder notification;
     private NotificationManager notificationManager;
-    private final int NID = 10;
+    private final int NID = 10;*/
     private LocationComponentsSingleton instance;
     private BroadcastReceiver locationPermissionReceiver;
-    private DatabaseReference dbUserRef;
+    private DatabaseReference dbUserRef, conRef;
+    private ValueEventListener connectionListener;
+    private Location loc;
+    private boolean isConnected;
+    private FirebaseAuth userAuth;
+    private FirebaseAuth.AuthStateListener userVerified;
 
     public BackgroundLocationService() {
     }
@@ -69,14 +78,14 @@ public class BackgroundLocationService extends Service implements LocationListen
         locationHandler.post(new Runnable() {
             @Override
             public void run() {
+                isConnected = false;
+                connectionListener = checkConnectivity();
+                userVerified = getUserVerified();
                 localBroadcastManager = LocalBroadcastManager
                         .getInstance(BackgroundLocationService.this);
                 setLocationSignalReceiver();
                 setInstance();
-                UserSession session = new UserSession(getApplicationContext());
-                if (session.isLoggedIn())
-                    dbUserRef = FirebaseDatabase.getInstance().getReference().child("users")
-                            .child(session.getDbKey());
+                FirebaseDatabase.getInstance().setPersistenceEnabled(true);
             }
         });
     }
@@ -102,7 +111,9 @@ public class BackgroundLocationService extends Service implements LocationListen
         locationHandler.post(new Runnable() {
             @Override
             public void run() {
-                Log.i(TAG, "running background service...");
+                addConnectionListener();
+                if (isConnected)
+                    userAuth.addAuthStateListener(userVerified);
                 if (!gClient.isConnected() || !gClient.isConnecting())
                     gClient.connect();
                 IntentFilter filter = new IntentFilter(MapsActivity.ACTION);
@@ -113,11 +124,16 @@ public class BackgroundLocationService extends Service implements LocationListen
     }
 
     @Override
-    public void onLocationChanged(Location location) {
-        sendNewLocation(location);
-        Toast.makeText(getApplicationContext(), location.getLatitude() + ":" +
-                location.getLongitude(), Toast.LENGTH_SHORT).show();
-        Log.i(TAG, location.getLatitude() + ":" + location.getLongitude());
+    public void onLocationChanged(final Location location) {
+        locationHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                if (loc == null)
+                    loc = location;
+                else if (!loc.equals(location))
+                    sendNewLocation(location);
+            }
+        });
     }
 
     @Override
@@ -127,6 +143,8 @@ public class BackgroundLocationService extends Service implements LocationListen
         localBroadcastManager.unregisterReceiver(locationPermissionReceiver);
         stopLocationUpdate();
         destroyGClient();
+        userAuth.removeAuthStateListener(userVerified);
+        removeConnectionListener();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
             locationHandlerThread.quitSafely();
         } else locationHandlerThread.quit();
@@ -135,13 +153,23 @@ public class BackgroundLocationService extends Service implements LocationListen
     @Override
     public void onConnected(@Nullable Bundle bundle) {
         Log.i(TAG, "connected");
-        startLocationUpdate();
+        locationHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                startLocationUpdate();
+            }
+        });
     }
 
     @Override
     public void onConnectionSuspended(int i) {
         Log.w(TAG, "suspended");
-        gClient.connect();
+        locationHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                gClient.connect();
+            }
+        });
     }
 
     @Override
@@ -169,7 +197,7 @@ public class BackgroundLocationService extends Service implements LocationListen
             }
     }
 
-    private void createNotification() {
+    /*private void createNotification() {
         notification = new NotificationCompat.Builder(this)
                 .setSmallIcon(ic_menu_mylocation)
                 .setContentTitle("Allow Location Detection")
@@ -188,7 +216,7 @@ public class BackgroundLocationService extends Service implements LocationListen
         notificationManager.notify(NID, notification.build());
     }
 
-    /*private void buildPendingBroadcast() {
+    private void buildPendingBroadcast() {
         Intent i = new Intent(this, LocationBroadcastReceiver.class);
         PendingIntent pi = PendingIntent.getBroadcast(this, LocationBroadcastReceiver.REQUEST_CODE,
                 i, PendingIntent.FLAG_CANCEL_CURRENT);
@@ -231,6 +259,53 @@ public class BackgroundLocationService extends Service implements LocationListen
         Intent i = new Intent(ACTION);
         i.putExtra("location", location);
         localBroadcastManager.sendBroadcast(i);
+    }
+
+    private ValueEventListener checkConnectivity() {
+        return new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.getValue(Boolean.class))
+                    isConnected = true;
+                else isConnected = false;
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+            }
+        };
+    }
+
+    private void addConnectionListener() {
+        if (connectionListener == null)
+            connectionListener = checkConnectivity();
+        if (conRef == null)
+            conRef = FirebaseDatabase.getInstance().getReference(".info/connected");
+        conRef.addValueEventListener(connectionListener);
+    }
+
+    private void removeConnectionListener() {
+        if (connectionListener != null) {
+            conRef.removeEventListener(connectionListener);
+            connectionListener = null;
+        }
+    }
+
+    private FirebaseAuth.AuthStateListener getUserVerified() {
+        return new FirebaseAuth.AuthStateListener() {
+            @Override
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                if (firebaseAuth.getCurrentUser() == null)
+                    stopSelf();
+                else {
+                    if (dbUserRef == null) {
+                        UserSession session = new UserSession(getApplicationContext());
+                        dbUserRef = FirebaseDatabase.getInstance().getReference().child("users")
+                                .child(session.getDbKey());
+                    }
+                }
+            }
+        };
     }
 
     private final class LocationHandler extends Handler {

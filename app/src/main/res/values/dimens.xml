@@ -2,4 +2,22 @@
     <!-- Default screen margins, per the Android Design guidelines. -->
     <dimen name="activity_horizontal_margin">16dp</dimen>
     <dimen name="activity_vertical_margin">16dp</dimen>
+    <dimen name="fab_first_mini_button_vertical_margin">80dp</dimen>
+    <dimen name="fab_second_mini_button_vertical_margin">135dp</dimen>
+    <dimen name="fab_third_mini_button_vertical_margin">190dp</dimen>
+    <dimen name="material_design_text_size_headline">24sp</dimen>
+    <dimen name="chat_button_margin">44dp</dimen>
+    <dimen name="material_design_button_height">36dp</dimen>
+    <dimen name="material_design_button_margin">8dp</dimen>
+    <dimen name="material_design_button_padding">16dp</dimen>
+    <dimen name="material_design_button_min_width">64dp</dimen>
+    <dimen name="material_design_raised_button_min_width">88dp</dimen>
+    <dimen name="material_design_text_field_padding">16dp</dimen>
+    <dimen name="material_design_text_size_title">20sp</dimen>
+    <dimen name="material_design_text_size_sub_heading">16sp</dimen>
+    <dimen name="material_design_text_size_caption">13sp</dimen>
+    <dimen name="material_design_horizontal_padding">16dp</dimen>
+    <dimen name="material_design_list_height">48dp</dimen>
+    <dimen name="material_design_list_vertical_padding">8dp</dimen>
+    <dimen name="camera_button_margin">36dp</dimen>
 </resources>

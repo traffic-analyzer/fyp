@@ -1,81 +1,111 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<android.support.v7.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/activity_register"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="top"
     android:paddingBottom="@dimen/activity_vertical_margin"
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.nuces.ateebahmed.locationfinder.RegisterActivity">
 
-    <EditText
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:inputType="textPersonName"
-        android:ems="10"
-        android:id="@+id/etName"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:hint="@string/etName"
-        android:layout_margin="10dp"
-        android:padding="10dp" />
+    <android.support.design.widget.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <android.support.design.widget.TextInputEditText
+            android:id="@+id/etName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="@dimen/material_design_text_field_padding"
+            android:paddingBottom="@dimen/material_design_text_field_padding"
+            android:gravity="center_vertical|start"
+            android:background="@null"
+            android:inputType="textPersonName"
+            android:hint="@string/etName"
+            android:ems="10"
+            android:maxLines="1" />
+    </android.support.design.widget.TextInputLayout>
 
-    <EditText
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:inputType="textPersonName"
-        android:ems="10"
-        android:layout_below="@+id/etName"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:id="@+id/etUser"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:hint="@string/etUsername"
-        android:layout_margin="10dp" />
+    <android.support.design.widget.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <android.support.design.widget.TextInputEditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="@dimen/material_design_text_field_padding"
+            android:paddingBottom="@dimen/material_design_text_field_padding"
+            android:gravity="center_vertical|start"
+            android:background="@null"
+            android:inputType="textPersonName"
+            android:ems="10"
+            android:id="@+id/etUser"
+            android:maxLines="1"
+            android:hint="@string/etUsername" />
+    </android.support.design.widget.TextInputLayout>
 
-    <EditText
-        android:layout_width="wrap_content"
+    <android.support.design.widget.TextInputLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:inputType="textEmailAddress"
-        android:ems="10"
-        android:layout_below="@+id/etUser"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:id="@+id/etEmail"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:hint="@string/etEmail"
-        android:layout_margin="10dp" />
+        android:id="@+id/tilEmail">
+        <android.support.design.widget.TextInputEditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="@dimen/material_design_text_field_padding"
+            android:paddingBottom="@dimen/material_design_text_field_padding"
+            android:gravity="center_vertical|start"
+            android:background="@null"
+            android:inputType="textEmailAddress"
+            android:ems="10"
+            android:id="@+id/etEmail"
+            android:maxLines="1"
+            android:hint="@string/prompt_email" />
+    </android.support.design.widget.TextInputLayout>
 
-    <EditText
-        android:layout_width="wrap_content"
+    <android.support.design.widget.TextInputLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:inputType="textPassword"
-        android:ems="10"
-        android:layout_below="@+id/etEmail"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
-        android:id="@+id/etPassword"
-        android:layout_alignParentRight="true"
-        android:layout_alignParentEnd="true"
-        android:hint="@string/etPassword"
-        android:layout_margin="10dp" />
+        android:id="@+id/tilPassword">
+        <android.support.design.widget.TextInputEditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="@dimen/material_design_text_field_padding"
+            android:paddingBottom="@dimen/material_design_text_field_padding"
+            android:gravity="center_vertical|start"
+            android:background="@null"
+            android:inputType="textPassword"
+            android:ems="10"
+            android:id="@+id/etPassword"
+            android:hint="@string/prompt_password"
+            android:maxLines="1" />
+    </android.support.design.widget.TextInputLayout>
 
-    <Button
+    <android.support.v7.widget.AppCompatButton
         android:text="@string/btnRegister"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/btnRegister"
-        android:layout_below="@+id/etPassword"
-        android:layout_centerHorizontal="true"
-        android:padding="20dp"
-        android:layout_margin="10dp"
-        android:paddingLeft="15dp"
-        android:paddingRight="15dp" />
-</RelativeLayout>
+        android:height="@dimen/material_design_button_height"
+        android:minWidth="@dimen/material_design_raised_button_min_width"
+        android:layout_marginTop="@dimen/activity_vertical_margin"
+        android:layout_marginBottom="@dimen/activity_vertical_margin"
+        android:layout_marginRight="@dimen/material_design_button_margin"
+        android:layout_marginLeft="@dimen/material_design_button_margin"
+        android:layout_marginStart="@dimen/material_design_button_margin"
+        android:layout_marginEnd="@dimen/material_design_button_margin"
+        android:paddingLeft="@dimen/material_design_button_padding"
+        android:paddingStart="@dimen/material_design_button_padding"
+        android:paddingRight="@dimen/material_design_button_padding"
+        android:paddingEnd="@dimen/material_design_button_padding" />
+
+    <android.support.v7.widget.AppCompatTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="@dimen/material_design_text_size_sub_heading"
+        android:text="@string/txtRequired"
+        android:layout_marginTop="@dimen/activity_vertical_margin"
+        android:layout_marginBottom="@dimen/activity_vertical_margin"/>
+
+</android.support.v7.widget.LinearLayoutCompat>

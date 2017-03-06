@@ -1,8 +1,17 @@
 package com.nuces.ateebahmed.locationfinder;
 
+import android.content.Context;
+import android.content.Intent;
+import android.location.Location;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.design.widget.TextInputEditText;
+import android.support.design.widget.TextInputLayout;
+import android.support.v4.net.ConnectivityManagerCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.AppCompatButton;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -26,33 +35,53 @@ import models.User;
 
 public class RegisterActivity extends AppCompatActivity {
 
-    private EditText etUser, etPassword, etName, etEmail;
-    private Button btnRegister;
-    private DatabaseReference dbUsersRef;
+    private static final String TAG = "RegisterActivity";
+    private TextInputLayout tilEmail, tilPassword;
+    private TextInputEditText etUser, etPassword, etName, etEmail;
+    private AppCompatButton btnRegister;
+    private DatabaseReference dbUsersRef, conRef;
+    private ValueEventListener usernameListener, connectionListener;
     private FirebaseAuth userAuth;
     private FirebaseAuth.AuthStateListener userAuthListener;
+    private UserSession session;
+    private boolean isConnected;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
-        DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
-        dbUsersRef = dbRootRef.child("users");
+        isConnected = false;
 
-        userAuth = FirebaseAuth.getInstance();
+        addConnectionListener();
+
+        getInstances();
+
+        usernameListener = usernameAvailable();
+
         userAuthListener = new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                addValuesInDatabase(firebaseAuth.getCurrentUser());
+                if (isConnected) {
+                    addValuesInDatabase(firebaseAuth.getCurrentUser());
+                    saveNewUserSession(firebaseAuth.getCurrentUser());
+                    startMapsActivtity();
+                } else {
+                    Toast.makeText(getApplicationContext(), "No Internet connection available",
+                            Toast.LENGTH_LONG).show();
+                }
             }
         };
 
-        etName = (EditText) findViewById(R.id.etName);
-        etUser = (EditText) findViewById(R.id.etUser);
-        etEmail = (EditText) findViewById(R.id.etEmail);
-        etPassword = (EditText) findViewById(R.id.etPassword);
-        btnRegister = (Button) findViewById(R.id.btnRegister);
+        session = new UserSession(getApplicationContext());
+
+        tilEmail = (TextInputLayout) findViewById(R.id.tilEmail);
+        tilPassword = (TextInputLayout) findViewById(R.id.tilPassword);
+        etName = (TextInputEditText) findViewById(R.id.etName);
+        etUser = (TextInputEditText) findViewById(R.id.etUser);
+        etEmail = (TextInputEditText) findViewById(R.id.etEmail);
+        etPassword = (TextInputEditText) findViewById(R.id.etPassword);
+        btnRegister = (AppCompatButton) findViewById(R.id.btnRegister);
         btnRegister.setEnabled(false);
 
         TextWatcher fieldsEmpty = new TextWatcher() {
@@ -75,14 +104,16 @@ public class RegisterActivity extends AppCompatActivity {
         btnRegister.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                createNewUser();
+                addListenerforUsername();
             }
         });
 
+        setEmailHelperText();
+        setPasswordHelperText();
         etName.addTextChangedListener(fieldsEmpty);
-        etPassword.addTextChangedListener(fieldsEmpty);
+//        etPassword.addTextChangedListener(fieldsEmpty);
         etUser.addTextChangedListener(fieldsEmpty);
-        etEmail.addTextChangedListener(fieldsEmpty);
+//        etEmail.addTextChangedListener(fieldsEmpty);
     }
 
     @Override
@@ -107,6 +138,14 @@ public class RegisterActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         userAuth.removeAuthStateListener(userAuthListener);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        removeListenerforUsername();
+        userAuth.removeAuthStateListener(userAuthListener);
+        removeConnectionListener();
     }
 
     private void addValuesInDatabase(FirebaseUser fUser) {
@@ -139,37 +178,143 @@ public class RegisterActivity extends AppCompatActivity {
         else btnRegister.setEnabled(true);
     }
 
-    private void createNewUser() {
-        dbUsersRef.orderByChild("email").equalTo(etEmail.getText().toString().trim())
-                .addListenerForSingleValueEvent(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot dataSnapshot) {
-                        if (!existInDatabase(dataSnapshot)) {
-                            userAuth.createUserWithEmailAndPassword(etEmail.getText().toString().trim(),
-                                    etPassword.getText().toString().trim())
-                                    .addOnCompleteListener(RegisterActivity.this,
-                                            new OnCompleteListener<AuthResult>() {
-                                                @Override
-                                                public void onComplete(@NonNull Task<AuthResult> task) {
-                                                    Log.i("REGISTER", "onComplete: " + task.isSuccessful());
-                                                    if (!task.isSuccessful()) {
-                                                        Log.e("REGISTER", "signup failed");
-                                                        Toast.makeText(RegisterActivity.this, "Signup failed",
-                                                                Toast.LENGTH_SHORT).show();
-                                                    } else {
-                                                        Toast.makeText(RegisterActivity.this, "Signup successful",
-                                                                Toast.LENGTH_SHORT).show();
-                                                        finish();
-                                                    }
-                                                }
-                                            });
-                        }
-                    }
+    private void addListenerforUsername() {
+        if (isConnected)
+            dbUsersRef.orderByChild("username").equalTo(etUser.getText().toString().trim())
+                    .addListenerForSingleValueEvent(usernameListener);
+        else Toast.makeText(getApplicationContext(), "No internet connection available",
+                Toast.LENGTH_LONG).show();
+    }
 
-                    @Override
-                    public void onCancelled(DatabaseError databaseError) {
+    private void removeListenerforUsername() {
+        dbUsersRef.orderByChild("username").equalTo(etUser.getText().toString().trim())
+                .removeEventListener(usernameListener);
+    }
 
-                    }
-                });
+    private void setEmailHelperText() {
+        tilEmail.getEditText().addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                tilEmail.setError(getString(R.string.etEmail));
+            }
+
+            @Override
+            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                tilEmail.setError(getString(R.string.etEmail));
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+                checkFields();
+            }
+        });
+    }
+
+    private void setPasswordHelperText() {
+        tilPassword.getEditText().addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                if (charSequence.length() == 0) {
+                    tilPassword.setError("atleast 8 characters long");
+                }
+            }
+
+            @Override
+            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                if (charSequence.length() < 8) {
+                    tilPassword.setError("atleast 8 characters long");
+                } else tilPassword.setErrorEnabled(false);
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+            }
+        });
+    }
+
+    private ValueEventListener usernameAvailable() {
+        return new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if(!existInDatabase(dataSnapshot))
+                    registerUserWithFirebase();
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+                Log.e(TAG, databaseError.getCode() + ": " + databaseError.getMessage());
+            }
+        };
+    }
+
+    private void registerUserWithFirebase() {
+        userAuth.createUserWithEmailAndPassword(etEmail.getText().toString().trim(),
+                etPassword.getText().toString().trim())
+                .addOnCompleteListener(RegisterActivity.this,
+                        new OnCompleteListener<AuthResult>() {
+                            @Override
+                            public void onComplete(@NonNull Task<AuthResult> task) {
+                                Log.i("REGISTER", "onComplete: " + task.isSuccessful());
+                                if (!task.isSuccessful()) {
+                                    Log.e("REGISTER", "signup failed");
+                                    Toast.makeText(RegisterActivity.this, "Signup failed",
+                                            Toast.LENGTH_SHORT).show();
+                                } else {
+                                    Toast.makeText(RegisterActivity.this, "Signup successful",
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            }
+                        });
+    }
+
+    private void saveNewUserSession(FirebaseUser user) {
+        if (user != null) {
+            session.createSession(etUser.getText().toString().trim(), user.getUid(),
+                    etEmail.getText().toString().trim());
+        }
+    }
+
+    private void getInstances() {
+        if (isConnected) {
+            DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
+            dbUsersRef = dbRootRef.child("users");
+            userAuth = FirebaseAuth.getInstance();
+        }
+    }
+
+    private void startMapsActivtity() {
+        Intent maps = new Intent(this, MapsActivity.class);
+        startActivity(maps);
+        finish();
+    }
+
+    private ValueEventListener checkConnectivity() {
+        return new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.getValue(Boolean.class))
+                    isConnected = true;
+                else isConnected = false;
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+            }
+        };
+    }
+
+    private void addConnectionListener() {
+        if (connectionListener == null)
+            connectionListener = checkConnectivity();
+        if (conRef == null)
+            conRef = FirebaseDatabase.getInstance().getReference(".info/connected");
+        conRef.addValueEventListener(connectionListener);
+    }
+
+    private void removeConnectionListener() {
+        if (connectionListener != null) {
+            conRef.removeEventListener(connectionListener);
+            connectionListener = null;
+        }
     }
 }

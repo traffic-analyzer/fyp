@@ -13,10 +13,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
-import android.os.Parcelable;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
@@ -33,7 +30,6 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
-import android.widget.Button;
 import android.widget.Toast;
 
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -56,17 +52,19 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.AuthResult;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
-import java.io.File;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 
 import models.User;
 
@@ -83,7 +81,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected GoogleApiClient gClient;
     protected LocationSettingsRequest locSettingReq;
     protected Location loc;
-    protected boolean locUpd, geofenceAdded, isBtnTapped;
+    protected boolean locUpd, geofenceAdded, isBtnTapped, isConnected;
     private SharedPreferences sharedPreferences;
     private ResultCallback<Status> statusResult;
 
@@ -93,24 +91,22 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ArrayList<Marker> userMarkers;
     protected ArrayList<Geofence> geofenceList;
 
-    private UserSession session;
-    private DatabaseReference dbUsersRef, dbMessagesRef, dbUser;
-//    private ChildEventListener usersLocationListener, messageListener;
+    private DatabaseReference dbUsersRef, conRef;
+    private ValueEventListener connectionListener;
+    private ChildEventListener usersLocationListener;
 
-    private Button btnSearchLocation;
-    /*private TextView txtChat;
-    */
+    private FirebaseAuth userAuth;
+    private FirebaseAuth.AuthStateListener userVerified;
+
     private Toolbar searchBar;
-    private FloatingActionButton btnGotoMarker, btnAddContent, btnCamera, btnChat;
+    private FloatingActionButton btnGotoMarker, btnAddContent, btnCamera, btnChat, btnVoiceRecord;
     private Animation animBtnOpen, animBtnClose, animRotateForward, animRotateBackward;
-    private String imagePath;
 
     // Constants
     private String packageName = "com.nuces.ateebahmed.locationfinder",
             sharedPreferencesName = packageName + ".SHARED_PREFERENCES_NAME",
             geofencesAddedKey = packageName + ".GEOFENCES_ADDED_KEY";
     private long geofenceExpiration = 60 * 60 * 1000, geofenceRadius = 100;
-    private static final int REQ_IMAGE_CAPTURE = 1;
     protected static final int CHECK_SETTINGS = 0x1, ENABLE_LOCATION = 0x2;
     private static final String GEOFENCE_REQUEST_KEY = "own";
 
@@ -119,32 +115,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-        session = new UserSession(getApplicationContext());
-        if (!session.isLoggedIn()) {
-            startSignInActivity();
-        }
-
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
-
-        setInstance();
-
-        /*DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
-        if (session.isLoggedIn())
-            dbUser = dbRootRef.child("users").child(session.getDbKey()).getRef();*/
-
-        localBroadcastManager = LocalBroadcastManager.getInstance(this);
-        setLocationBroacastReceiver();
-
-        startBackgroundService();
+        isConnected = false;
 
         searchBar = (Toolbar) findViewById(R.id.searchBar);
         setSupportActionBar(searchBar);
-        /*
-        btnSearchLocation = (Button) findViewById(R.id.btnSearchLocation);
-        */
         btnGotoMarker = (FloatingActionButton) findViewById(R.id.btnGotoMarker);
         btnGotoMarker.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -166,8 +140,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             public void onClick(View view) {
                 Log.i("MAPS", "Camera");
                 animateBtnAddContent();
-                startCamera();
-//                addImageToGallery();
             }
         });
         btnChat = (FloatingActionButton) findViewById(R.id.btnChat);
@@ -176,8 +148,17 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             public void onClick(View view) {
                 animateBtnAddContent();
                 Log.i("MAPS", "Chat");
-                Intent chat = new Intent(getApplicationContext(), ChatActivity.class);
+                Intent chat = new Intent(getApplicationContext(), TextMessageActivity.class);
                 startActivity(chat);
+            }
+        });
+        btnVoiceRecord = (FloatingActionButton) findViewById(R.id.btnVoiceRecord);
+        btnVoiceRecord.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                animateBtnAddContent();
+                Intent voice = new Intent(getApplicationContext(), VoiceRecorderActivity.class);
+                startActivity(voice);
             }
         });
 
@@ -187,8 +168,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 R.anim.rotate_forward);
         animRotateBackward = AnimationUtils.loadAnimation(getApplicationContext(),
                 R.anim.rotate_backward);
-        /*txtChat = (TextView) findViewById(R.id.txtChat);
-        */
+
+        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.map);
+        mapFragment.getMapAsync(this);
 
         geofenceList = new ArrayList<>();
         statusResult = getStatusResult();
@@ -198,24 +182,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         locUpd = false;
         marker = null;
         circle = null;
-
-        /*dbUsersRef = dbRootRef.child("users");
-        dbMessagesRef = dbRootRef.child("messages");*/
-
-        /*btnSearchLocation.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if (gClient.isConnected())
-                    startLocUpds();
-            }
-        });
-
-        btnSend.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                saveMessageInDatabase();
-            }
-        });*/
     }
 
     /**
@@ -240,31 +206,32 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));*/
     }
 
-    /*@Override
-    public void onConnected(@Nullable Bundle bundle) {
-        Log.i("MAPS", "connected");
-        createLocReq();
-        createLocSettingReq();
-        checkLocSettings();
-        statusResult = getStatusResult();
-        attachUsersListener();
-        attachMessageListener();
-        addNearbyUsers();
-        getNearbyMessages();
-    }*/
-
     @Override
     protected void onStart() {
         super.onStart();
+
+        setInstance();
+
+        addConnectionListener();
+
+        getInstances();
+
+        userVerified = getUserVerified();
+
+        if (isConnected)
+            userAuth.addAuthStateListener(userVerified);
+
+        localBroadcastManager = LocalBroadcastManager.getInstance(this);
+        setLocationBroacastReceiver();
+
+        startBackgroundService();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-//        detachMessageListener();
-//        detachUsersListener();
-        /*removeUserMarkers();
-        removeLocationFromDatabase();*/
+        userAuth.removeAuthStateListener(userVerified);
+        removeConnectionListener();
     }
 
     @Override
@@ -272,24 +239,20 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onPause();
         sendLocationUpdateSignal(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
         localBroadcastManager.unregisterReceiver(locationBroadcastReceiver);
-//        detachMessageListener();
-//        detachUsersListener();
+        detachUsersListener();
         if (!geofenceList.isEmpty()) {
             geofenceList.remove(0);
             removeGeofence();
         }
-        /*
         removeUserMarkers();
-        removeLocationFromDatabase();*/
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        /*if (gClient.isConnected() && locUpd) {
-            attachMessageListener();
+        if (gClient.isConnected() && locUpd) {
             attachUsersListener();
-        }*/
+        }
         localBroadcastManager.registerReceiver(locationBroadcastReceiver,
                 new IntentFilter(BackgroundLocationService.ACTION));
         instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -327,16 +290,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 break;
             case Activity.RESULT_CANCELED:
                 Log.e(TAG, "cancelled");
-                break;
-            case REQ_IMAGE_CAPTURE:
-                if (resultCode == RESULT_OK) {
-//                    addImageToGallery();
-//                    Bundle extras = data.getExtras();
-//                    Bitmap image = (Bitmap) extras.get("data");
-//                    // TODO: create an imageview
-//                    imageView.setImageBitmap(image);
-                    Log.i("MAPS", "captured");
-                }
                 break;
         }
     }
@@ -382,7 +335,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
         switch (requestCode) {
             case CHECK_SETTINGS:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)
@@ -467,11 +421,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         finish();
     }
 
-    private void addLocationToDatabase() {
-        dbUser.child("latitude").setValue(loc.getLatitude());
-        dbUser.child("longitude").setValue(loc.getLongitude());
-    }
-
     private void gotoMarker() {
         if (loc != null)
             mMap.animateCamera(CameraUpdateFactory
@@ -491,7 +440,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         marker = mMap.addMarker(new MarkerOptions().position(pos));
         circle = mMap.addCircle(new CircleOptions().center(pos).radius(geofenceRadius)
                 .strokeColor(Color.GREEN).fillColor(Color.alpha(0)));
-//        addLocationToDatabase();
         createGeofence(loc);
         addGeofence();
     }
@@ -504,7 +452,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    /*private void attachUsersListener() {
+    private void attachUsersListener() {
         if (loc != null) {
             removeUserMarkers();
             if (usersLocationListener == null) {
@@ -546,35 +494,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             dbUsersRef.removeEventListener(usersLocationListener);
             usersLocationListener = null;
         }
-    }*/
-
-    private void addNearbyUsers() {
-        dbUsersRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                removeUserMarkers();
-                if (!dataSnapshot.exists()) {
-                    Log.e("MAPS", "users object not found");
-                    return;
-                }
-                if (loc != null)
-                    for (DataSnapshot ids : dataSnapshot.getChildren()) {
-                        if (!ids.getKey().equals(dbUser.getKey())) {
-                            User user = ids.getValue(User.class);
-                            if (inRange(user.getLongitude(), user.getLatitude())) {
-                                userMarkers.add(mMap.addMarker(new MarkerOptions().position(
-                                        new LatLng(user.getLatitude(), user.getLongitude()))));
-                                Log.i("MAPS", "User added");
-                            }
-                        }
-                    }
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-                Log.e("MAPS", databaseError.getMessage());
-            }
-        });
     }
 
     private boolean inRange(double lng, double lat) {
@@ -597,128 +516,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    private double pointValue(double r, double p1, double p2) {
+    /*private double pointValue(double r, double p1, double p2) {
         return (((1 - r) * p1) + (r * p2));
     }
-
-    /*private void saveMessageInDatabase() {
-        if (loc == null) {
-            Toast.makeText(this, "Enable location first", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        if (etMsgSpace.getText().toString().isEmpty()) {
-            Toast.makeText(this, "Write something", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        Message msg = new Message(etMsgSpace.getText().toString().trim(), session.getSPUsername(),
-                loc.getLongitude(), loc.getLatitude(), System.currentTimeMillis());
-        dbMessagesRef.push().setValue(msg);
-        Log.i("MAPS", "Message sent");
-    }
-
-    private String addNearbyMessages(Message m) {
-        if (inTimeLength(m.getTimestamp())) {
-            if (inRange(m.getLongitude(), m.getLatitude())) {
-                return DateFormat.getTimeFormat(getApplicationContext())
-                        .format(m.getTimestamp()) + "\n"
-                        + m.getUsername() +
-                        ": " + m.getMessage().trim() + "\n";
-            }
-        }
-        return "";
-    }
-
-    private void attachMessageListener() {
-        if (messageListener == null) {
-            messageListener = new ChildEventListener() {
-                @Override
-                public void onChildAdded(DataSnapshot dataSnapshot, String s) {
-                    txtChat.append(addNearbyMessages(dataSnapshot.getValue(Message.class)));
-                }
-
-                @Override
-                public void onChildChanged(DataSnapshot dataSnapshot, String s) {
-
-                }
-
-                @Override
-                public void onChildRemoved(DataSnapshot dataSnapshot) {
-
-                }
-
-                @Override
-                public void onChildMoved(DataSnapshot dataSnapshot, String s) {
-
-                }
-
-                @Override
-                public void onCancelled(DatabaseError databaseError) {
-
-                }
-            };
-            dbMessagesRef.addChildEventListener(messageListener);
-        }
-    }
-
-    private void detachMessageListener() {
-        if (messageListener != null) {
-            dbMessagesRef.removeEventListener(messageListener);
-            messageListener = null;
-        }
-    }
-
-    // Fetches messages of Geofenced users
-    private void getNearbyMessages() {
-        dbMessagesRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                if (loc == null) {
-                    Toast.makeText(MapsActivity.this, "Enable location first", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                if (geofenceList.isEmpty())
-                    return;
-                if (userMarkers.isEmpty()) {
-                    Toast.makeText(MapsActivity.this, "No users present nearby", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                if (dataSnapshot.exists()) {
-                    String line = "";
-                    for (DataSnapshot ids: dataSnapshot.getChildren()) {
-                        if (inTimeLength(ids.child("timestamp").getValue(Long.class))) {
-                            if (inRange(ids.child("longitude").getValue(Double.class),
-                                    ids.child("latitude").getValue(Double.class))) {
-                                Message msg = ids.getValue(Message.class);
-                                line += DateFormat.getTimeFormat(getApplicationContext())
-                                                        .format(msg.getTimestamp()) + "\n"
-                                        + msg.getUsername() +
-                                        ": " + msg.getMessage() + "\n";
-                                Log.i("MAPS", "Message received");
-                            }
-                        }
-                    }
-                    txtChat.setText(line);
-                }
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-                Log.e("MAPS", databaseError.getCode() + ": " + databaseError.getMessage());
-            }
-        });
-    }*/
 
     // Check if time has expired of a given time
     private boolean inTimeLength(long timestamp) {
         long fiveMin = 5 * 60 * 1000, beforeFiveMin = System.currentTimeMillis() - fiveMin;
         return (beforeFiveMin <= timestamp);
-    }
-
-    // Updates user's location so it won't show on map
-    private void removeLocationFromDatabase() {
-        dbUser.child("latitude").setValue(181);
-        dbUser.child("longitude").setValue(91);
-    }
+    }*/
 
     // Checks location setting and sends back the result
     protected void checkLocSettings() {
@@ -735,103 +541,28 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    // Starts location service to detect location
-    /*private void startLocUpds() {
-        if (checkLocationPermission()) {
-            Toast.makeText(this, "Getting your location", Toast.LENGTH_SHORT).show();
-            LocationServices.FusedLocationApi.requestLocationUpdates(gClient, locReq, this)
-                    .setResultCallback(new ResultCallback<Status>() {
-                        @Override
-                        public void onResult(@NonNull Status status) {
-                            if (status.isSuccess()) {
-                                locUpd = true;
-                                gotoMarker();
-//                            attachMessageListener();
-                                attachUsersListener();
-                            } else {
-                                Log.e("MAPS", status.getStatusCode() + status.getStatusMessage());
-                            }
-                        }
-                    });
-        } else requestLocationPermission();
-    }*/
-
-    // Stops location service
-    /*private void stopLocUpds() {
-        if (locUpd)
-            LocationServices.FusedLocationApi.removeLocationUpdates(gClient, this)
-                    .setResultCallback(new ResultCallback<Status>() {
-                        @Override
-                        public void onResult(@NonNull Status status) {
-                            if (status.isSuccess())
-                                locUpd = false;
-                            else Log.e("MAPS", status.getStatusCode() + status.getStatusMessage());
-                        }
-                    });
-    }*/
-
     private void animateBtnAddContent() {
         if (isBtnTapped) {
             isBtnTapped = false;
             btnAddContent.startAnimation(animRotateBackward);
             btnCamera.startAnimation(animBtnClose);
             btnChat.startAnimation(animBtnClose);
+            btnVoiceRecord.startAnimation(animBtnClose);
             btnCamera.setClickable(false);
             btnChat.setClickable(false);
+            btnVoiceRecord.setClickable(false);
             Log.i("MAPS", "Closed");
         } else {
             isBtnTapped = true;
             btnAddContent.startAnimation(animRotateForward);
             btnCamera.startAnimation(animBtnOpen);
             btnChat.startAnimation(animBtnOpen);
+            btnVoiceRecord.startAnimation(animBtnOpen);
             btnCamera.setClickable(true);
             btnChat.setClickable(true);
+            btnVoiceRecord.setClickable(true);
             Log.i("MAPS", "Opened");
         }
-    }
-
-    private void startCamera() {
-        Intent camera = new Intent(MapsActivity.this, CameraActivity.class);
-        startActivity(camera);
-        /*Intent camera = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        if (camera.resolveActivity(getPackageManager()) != null) {
-            File imageFile = null;
-            imageFile = createImageFile();
-            if (imageFile != null) {
-                Uri imageUri = FileProvider.getUriForFile(this, packageName, imageFile);
-                camera.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
-                startActivityForResult(camera, REQ_IMAGE_CAPTURE);
-            }
-        }*/
-    }
-
-    private File createImageFile() {
-        // Create an image file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String imageFileName = "TA_" + timeStamp + "_";
-        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        File image = null;
-        try {
-            image = File.createTempFile(
-                    imageFileName,  /* prefix */
-                    ".jpg",         /* suffix */
-                    storageDir      /* directory */
-            );
-            imagePath = image.getAbsolutePath();
-            return image;
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
-        // Save a file: path for use with ACTION_VIEW intents
-    }
-
-    private void addImageToGallery() {
-        Intent media = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        File f = new File(imagePath);
-        Uri uri = Uri.fromFile(f);
-        media.setData(uri);
-        this.sendBroadcast(media);
     }
 
     private void setLocationBroacastReceiver() {
@@ -849,7 +580,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void startBackgroundService() {
-        Log.i(TAG, isServiceRunning() + "");
         if (!isServiceRunning()) {
             Intent i = new Intent(this, BackgroundLocationService.class);
             startService(i);
@@ -871,6 +601,55 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         i.putExtra("priority", priority);
         localBroadcastManager.sendBroadcast(i);
     }
+
+    private ValueEventListener checkConnectivity() {
+        return new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.getValue(Boolean.class))
+                    isConnected = true;
+                else isConnected = false;
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+            }
+        };
+    }
+
+    private void addConnectionListener() {
+        if (connectionListener == null)
+            connectionListener = checkConnectivity();
+        if (conRef == null)
+            conRef = FirebaseDatabase.getInstance().getReference(".info/connected");
+        conRef.addValueEventListener(connectionListener);
+    }
+
+    private void removeConnectionListener() {
+        if (connectionListener != null) {
+            conRef.removeEventListener(connectionListener);
+            connectionListener = null;
+        }
+    }
+
+    private void getInstances() {
+        if (isConnected) {
+            DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
+            dbUsersRef = dbRootRef.child("users");
+            userAuth = FirebaseAuth.getInstance();
+        }
+    }
+
+    private FirebaseAuth.AuthStateListener getUserVerified() {
+        return new FirebaseAuth.AuthStateListener() {
+            @Override
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                if (firebaseAuth.getCurrentUser() == null)
+                    startSignInActivity();
+            }
+        };
+    }
+
 
     private final class LocationBroadcastReceiver extends BroadcastReceiver {
 

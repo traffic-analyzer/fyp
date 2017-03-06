@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.v7.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_text_message"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    android:orientation="vertical"
+    tools:context="com.nuces.ateebahmed.locationfinder.TextMessageActivity">
+
+    <android.support.v7.widget.AppCompatTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/txtQuestion"
+        android:text="@string/strQuestion"
+        android:textSize="@dimen/material_design_text_size_headline"
+        android:layout_marginBottom="@dimen/activity_horizontal_margin"
+        android:textColor="@android:color/black"
+        android:textAlignment="center"/>
+
+    <android.support.v7.widget.AppCompatTextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/strSituation"
+        android:textSize="@dimen/material_design_text_size_sub_heading"
+        android:paddingLeft="@dimen/material_design_horizontal_padding"
+        android:paddingRight="@dimen/material_design_horizontal_padding"
+        android:paddingEnd="@dimen/material_design_horizontal_padding"
+        android:paddingStart="@dimen/material_design_horizontal_padding"
+        android:paddingBottom="@dimen/material_design_list_vertical_padding"
+        android:paddingTop="@dimen/material_design_list_vertical_padding"/>
+
+    <RadioGroup
+        android:id="@+id/rdGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <android.support.v7.widget.AppCompatRadioButton
+            android:id="@+id/rdBlocked"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="@string/strBlocked"
+            android:textSize="@dimen/material_design_text_size_sub_heading"
+            android:paddingLeft="@dimen/material_design_horizontal_padding"
+            android:paddingRight="@dimen/material_design_horizontal_padding"
+            android:paddingStart="@dimen/material_design_horizontal_padding"
+            android:paddingEnd="@dimen/material_design_horizontal_padding"
+            android:paddingTop="@dimen/material_design_list_vertical_padding"
+            android:paddingBottom="@dimen/material_design_list_vertical_padding"
+            android:height="@dimen/material_design_list_height" />
+
+        <android.support.v7.widget.AppCompatRadioButton
+            android:id="@+id/rdSlowPace"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/strSlow"
+            android:textSize="@dimen/material_design_text_size_sub_heading"
+            android:paddingLeft="@dimen/material_design_horizontal_padding"
+            android:paddingRight="@dimen/material_design_horizontal_padding"
+            android:paddingStart="@dimen/material_design_horizontal_padding"
+            android:paddingEnd="@dimen/material_design_horizontal_padding"
+            android:paddingTop="@dimen/material_design_list_vertical_padding"
+            android:paddingBottom="@dimen/material_design_list_vertical_padding"
+            android:height="@dimen/material_design_list_height" />
+
+        <android.support.v7.widget.AppCompatRadioButton
+            android:id="@+id/rdNormal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/strNormal"
+            android:textSize="@dimen/material_design_text_size_sub_heading"
+            android:paddingLeft="@dimen/material_design_horizontal_padding"
+            android:paddingRight="@dimen/material_design_horizontal_padding"
+            android:paddingStart="@dimen/material_design_horizontal_padding"
+            android:paddingEnd="@dimen/material_design_horizontal_padding"
+            android:paddingTop="@dimen/material_design_list_vertical_padding"
+            android:paddingBottom="@dimen/material_design_list_vertical_padding"
+            android:height="@dimen/material_design_list_height" />
+
+        <android.support.v7.widget.AppCompatRadioButton
+            android:id="@+id/rdSpeedy"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/strLow"
+            android:textSize="@dimen/material_design_text_size_sub_heading"
+            android:paddingLeft="@dimen/material_design_horizontal_padding"
+            android:paddingRight="@dimen/material_design_horizontal_padding"
+            android:paddingStart="@dimen/material_design_horizontal_padding"
+            android:paddingEnd="@dimen/material_design_horizontal_padding"
+            android:paddingTop="@dimen/material_design_list_vertical_padding"
+            android:paddingBottom="@dimen/material_design_list_vertical_padding"
+            android:height="@dimen/material_design_list_height" />
+
+        <android.support.v7.widget.AppCompatRadioButton
+            android:id="@+id/rdNone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/strNone"
+            android:textSize="@dimen/material_design_text_size_sub_heading"
+            android:paddingLeft="@dimen/material_design_horizontal_padding"
+            android:paddingRight="@dimen/material_design_horizontal_padding"
+            android:paddingStart="@dimen/material_design_horizontal_padding"
+            android:paddingEnd="@dimen/material_design_horizontal_padding"
+            android:paddingTop="@dimen/material_design_list_vertical_padding"
+            android:paddingBottom="@dimen/material_design_list_vertical_padding"
+            android:height="@dimen/material_design_list_height" />
+
+    </RadioGroup>
+
+    <android.support.v7.widget.AppCompatButton
+        android:id="@+id/btnOptSend"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/btnSend"
+        android:layout_marginTop="@dimen/activity_horizontal_margin"
+        android:layout_marginBottom="@dimen/activity_horizontal_margin"
+        android:layout_marginLeft="@dimen/material_design_button_margin"
+        android:layout_marginRight="@dimen/material_design_button_margin"
+        android:layout_marginEnd="@dimen/material_design_button_margin"
+        android:layout_marginStart="@dimen/material_design_button_margin"
+        android:paddingLeft="@dimen/material_design_button_padding"
+        android:paddingRight="@dimen/material_design_button_padding"
+        android:paddingStart="@dimen/material_design_button_padding"
+        android:paddingEnd="@dimen/material_design_button_padding"
+        android:height="@dimen/material_design_button_height"
+        android:minWidth="@dimen/material_design_button_min_width" />
+
+</android.support.v7.widget.LinearLayoutCompat>

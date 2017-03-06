@@ -10,20 +10,20 @@ public class User {
     }
 
     public User(String name, String username) {
-        this.name = name;
-        this.username = username;
+        this.name = name.trim();
+        this.username = username.trim();
     }
 
     public User(String name, String email, String username) {
-        this.name = name;
-        this.email = email;
-        this.username = username;
+        this.name = name.trim();
+        this.email = email.trim();
+        this.username = username.trim();
     }
 
     public User(String name, String username, String email, double latitude, double longitude) {
-        this.name = name;
-        this.username = username;
-        this.email = email;
+        this.name = name.trim();
+        this.username = username.trim();
+        this.email = email.trim();
         this.latitude = latitude;
         this.longitude = longitude;
     }
@@ -46,27 +46,27 @@ public class User {
     }*/
 
     public String getName() {
-        return name;
+        return name.trim();
     }
 
     public void setName(String name) {
-        this.name = name;
+        this.name = name.trim();
     }
 
     public String getEmail() {
-        return email;
+        return email.trim();
     }
 
     public void setEmail(String email) {
-        this.email = email;
+        this.email = email.trim();
     }
 
     public String getUsername() {
-        return username;
+        return username.trim();
     }
 
     public void setUsername(String username) {
-        this.username = username;
+        this.username = username.trim();
     }
 
     /*public String getPassword() {

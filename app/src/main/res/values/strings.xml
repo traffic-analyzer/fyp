@@ -7,15 +7,13 @@
     <string name="etEmail">example@domain.com</string>
     <string name="btnRegister">Register</string>
     <string name="etUserLogin">Name</string>
-    <string name="etUsernameLogin">Username</string>
-    <string name="etPassLogin">********</string>
     <string name="btnLogin">Login</string>
-    <string name="etRegLink">Don\'t have an account? Tap here</string>
+    <string name="etRegLink">Don\'t have an account? Create one</string>
     <string name="title_activity_login">Sign in</string>
 
     <!-- Strings related to login -->
     <string name="prompt_email">Email</string>
-    <string name="prompt_password">Password (optional)</string>
+    <string name="prompt_password">Password</string>
     <string name="action_sign_in">Sign in or register</string>
     <string name="action_sign_in_short">Sign in</string>
     <string name="error_invalid_email">This email address is invalid</string>
@@ -37,9 +35,11 @@
     <string name="strLow">Speedy</string>
     <string name="strNone">No Traffic</string>
     <string name="strQuestion">How is traffic situation ahead?</string>
-    <string name="btnCapture">capture</string>
+    <string name="btnCapture">Capture</string>
     <string name="btnFlash">flash</string>
-    <string name="btnRecord">record</string>
+    <string name="btnRecord">Record</string>
     <string name="btnStop">stop</string>
     <string name="tglRecord">Switch to record audio</string>
+    <string name="txtRequired">All fields are required!</string>
+    <string name="strSituation">Situation</string>
 </resources>

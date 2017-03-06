@@ -9,6 +9,8 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.hardware.Sensor;
@@ -28,6 +30,10 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.AppCompatButton;
+import android.support.v7.widget.AppCompatImageButton;
+import android.support.v7.widget.AppCompatImageView;
+import android.support.v7.widget.SwitchCompat;
 import android.util.Log;
 import android.view.ContextThemeWrapper;
 import android.view.Surface;
@@ -35,7 +41,9 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
@@ -57,25 +65,20 @@ import models.Message;
 
 public class CameraActivity extends AppCompatActivity implements SensorEventListener {
 
-    private final String TAG = "CameraActivity",
-            IMG_DIR_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() +
-                    "/DCIM/LocationFinder";
+    private final String TAG = "CameraActivity";
     private CameraPreview preview;
     private Camera camera;
-    private Button flashCameraButton, captureImage, record;
+    private AppCompatImageButton flashCameraButton, captureImage, record;
     private boolean flashmode, camMode;
     private int rotation, orientation;
     private FrameLayout cameraView;
     private SensorManager sensorManager;
     private MediaRecorder videoRecorder;
-    private LocationComponentsSingleton instance;
     private final int CAMERA_REQUEST_CODE = 1;
-    private StorageReference mediaStorageRef, imageStorageRef, videoStorageRef;
-    private UserSession session;
-    private Location loc;
-    private DatabaseReference dbMessagesRef;
-    private BroadcastReceiver locationBroadcastReceiver;
     private String videoFileName;
+    private SwitchCompat swtCameraMode;
+    private static final String IMG_DIR_PATH = Environment.getExternalStorageDirectory()
+            .getAbsolutePath() + "/DCIM/LocationFinder";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -88,26 +91,12 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
         
         setContentView(R.layout.activity_camera);
 
-        instance = LocationComponentsSingleton.getInstance(getApplicationContext());
-
-        locationBroadcastReceiver = new LocationBroadcastReceiver();
-
-        mediaStorageRef = FirebaseStorage.getInstance().getReference();
-
-        imageStorageRef = mediaStorageRef.child("images");
-
-        videoStorageRef = mediaStorageRef.child("videos");
-
-        dbMessagesRef = FirebaseDatabase.getInstance().getReference().child("messages");
-
-        session = new UserSession(getApplicationContext());
-
         camMode = false;
 
         // camera surface view created
         cameraView = (FrameLayout) findViewById(R.id.surfaceView);
-        flashCameraButton = (Button) findViewById(R.id.flash);
-        captureImage = (Button) findViewById(R.id.captureImage);
+        flashCameraButton = (AppCompatImageButton) findViewById(R.id.flash);
+        captureImage = (AppCompatImageButton) findViewById(R.id.captureImage);
         captureImage.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -115,11 +104,19 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
             }
         });
         
-        record = (Button) findViewById(R.id.btnRecord);
+        record = (AppCompatImageButton) findViewById(R.id.btnRecord);
         record.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 startRecording();
+            }
+        });
+
+        swtCameraMode = (SwitchCompat) findViewById(R.id.swtCameraMode);
+        swtCameraMode.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                changeCameraMode(b);
             }
         });
 
@@ -128,7 +125,12 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
         if (!getBaseContext().getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_CAMERA_FLASH)) {
             flashCameraButton.setVisibility(View.GONE);
-        }
+        } else flashCameraButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                flashOnButton();
+            }
+        });
         orientation = ExifInterface.ORIENTATION_ROTATE_90;
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
     }
@@ -143,15 +145,13 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
             sensorManager.registerListener(this, sensorManager
                     .getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_UI);
         }
-        LocalBroadcastManager.getInstance(this).registerReceiver(locationBroadcastReceiver,
-                new IntentFilter(BackgroundLocationService.ACTION));
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(locationBroadcastReceiver);
         sensorManager.unregisterListener(this);
+        camera = null;
         videoRecorder.release();
     }
 
@@ -194,10 +194,10 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
         boolean showFlash = (getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_CAMERA_FLASH) && params.getFlashMode() != null)
                 && params.getSupportedFlashModes() != null
-                && params.getSupportedFocusModes().size() > 1;
+                && params.getSupportedFlashModes().size() > 1;
 
         flashCameraButton.setVisibility(showFlash ? View.VISIBLE
-                : View.INVISIBLE);
+                : View.GONE);
 
     }
 
@@ -219,42 +219,14 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                         @Override
                         public void onPictureTaken(byte[] data, Camera camera) {
 
-                            String imageName = "IMG_" + new SimpleDateFormat("yyyyMMdd_HHmmss")
-                                    .format(new Date()) + ".jpg";
+                            Intent imageData = new Intent(CameraActivity.this,
+                                    ImageViewActivity.class);
+                            imageData.putExtra("image", data);
+                            imageData.putExtra("orientation", orientation);
+                            startActivity(imageData);
+//                            showImage(data);
 
-                            File imageFile = new File(IMG_DIR_PATH + "/" + imageName);
-
-                            FileOutputStream fos = null;
-                            try {
-                                fos = new FileOutputStream(imageFile);
-                                fos.write(data);
-                                fos.close();
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-
-                            try {
-                                ExifInterface exif = new ExifInterface(imageFile.getAbsolutePath());
-                                exif.setAttribute(ExifInterface.TAG_ORIENTATION,
-                                        String.valueOf(orientation));
-                                exif.saveAttributes();
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-
-                            ContentValues values = new ContentValues();
-
-                            values.put(MediaStore.Images.Media.DATE_TAKEN,
-                                    System.currentTimeMillis());
-                            values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
-                            values.put(MediaStore.MediaColumns.DATA,
-                                    imageFile.getAbsolutePath());
-
-                            CameraActivity.this.getContentResolver().insert(
-                                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-                            Log.i(TAG, "captured");
-
-                            uploadPictureToStorage(imageFile);
+//                            saveImageOnLocalStorage(data);
                         }
                     });
                 } else Log.e(TAG, "could not focus");
@@ -297,8 +269,9 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
         if (camera != null) {
             try {
                 Camera.Parameters param = camera.getParameters();
-                param.setFlashMode(!flashmode ? Camera.Parameters.FLASH_MODE_TORCH
+                param.setFlashMode(!flashmode ? Camera.Parameters.FLASH_MODE_ON
                         : Camera.Parameters.FLASH_MODE_OFF);
+                changeFlashIcon(flashmode);
                 camera.setParameters(param);
                 flashmode = !flashmode;
             } catch (Exception e) {
@@ -386,7 +359,7 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
 
         cameraView.addView(preview);
 
-        createDirs();
+//        createDirs();
     }
 
     private boolean areCameraPermissionsAllowed() {
@@ -448,30 +421,21 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
             camera.unlock();
             prepareRecorder();
             videoRecorder.start();
-            record.setText(R.string.btnRecord);
+            record.setImageResource(R.drawable.ic_record_on);
         } else {
             camMode = false;
             videoRecorder.stop();
-            record.setText(R.string.btnStop);
+            record.setImageResource(R.drawable.ic_record_off);
             camera.lock();
             captureImage.setEnabled(true);
 
-            uploadVideoToStorage();
+//            uploadVideoToStorage();
 
             initRecorder();
         }
     }
 
-    private void createDirs() {
-        File mkDir = new File(IMG_DIR_PATH);
-        if (!mkDir.exists()) {
-            if (!mkDir.mkdirs()) {
-                Log.w(TAG, "could not make directories");
-            }
-        }
-    }
-
-    private void uploadVideoToStorage() {
+    /*private void uploadVideoToStorage() {
         videoStorageRef.child(videoFileName).putFile(Uri.fromFile(new File(IMG_DIR_PATH + "/" +
                 videoFileName))).addOnSuccessListener(this,
                 new OnSuccessListener<UploadTask.TaskSnapshot>() {
@@ -499,48 +463,20 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                 Log.e(TAG, e.getMessage());
             }
         });
-    }
+    }*/
 
-    private void uploadPictureToStorage(File imageFile) {
-        imageStorageRef.child(imageFile.getName()).putFile(Uri.fromFile(imageFile))
-                .addOnSuccessListener(CameraActivity.this,
-                        new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                            @Override
-                            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot)
-                            {
-                                if (taskSnapshot.getDownloadUrl() != null) {
-                                    if (session.isLoggedIn()) {
-                                        Message msg = new Message(session.getSPUsername(),
-                                                loc.getLongitude(), loc.getLatitude(),
-                                                System.currentTimeMillis());
-                                        msg.setImage(taskSnapshot.getDownloadUrl()
-                                                .toString());
-
-                                        dbMessagesRef.push().setValue(msg);
-
-                                        Toast.makeText(CameraActivity.this,
-                                                "Thank you! Your response has been recorded",
-                                                Toast.LENGTH_LONG).show();
-                                    }
-                                }
-                            }
-                        }).addOnFailureListener(CameraActivity.this, new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Toast.makeText(CameraActivity.this,
-                                "There was a problem in uploading your response!",
-                                Toast.LENGTH_LONG).show();
-                        Log.e(TAG, e.getMessage());
-                    }
-                });
-    }
-
-    private final class LocationBroadcastReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (intent.getExtras().get("location") != null) {
-                loc = (Location) intent.getExtras().get("location");
-            }
+    private void changeCameraMode(boolean state) {
+        if (state) {
+            record.setVisibility(View.VISIBLE);
+            captureImage.setVisibility(View.GONE);
+        } else {
+            captureImage.setVisibility(View.VISIBLE);
+            record.setVisibility(View.GONE);
         }
+    }
+
+    private void changeFlashIcon(boolean mode) {
+        if (mode) flashCameraButton.setImageResource(R.drawable.ic_flash_off);
+        else flashCameraButton.setImageResource(R.drawable.ic_flash_on);
     }
 }
