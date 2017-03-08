@@ -224,6 +224,7 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                             imageData.putExtra("image", data);
                             imageData.putExtra("orientation", orientation);
                             startActivity(imageData);
+                            finish();
 //                            showImage(data);
 
 //                            saveImageOnLocalStorage(data);
@@ -416,22 +417,29 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
 
     private void startRecording() {
         if (!camMode) {
+            Log.i(TAG, camMode + "");
             camMode = true;
             captureImage.setEnabled(false);
             camera.unlock();
             prepareRecorder();
             videoRecorder.start();
-            record.setImageResource(R.drawable.ic_record_on);
+            record.setImageResource(R.drawable.ic_record_off);
         } else {
+            Log.i(TAG, camMode + "");
             camMode = false;
             videoRecorder.stop();
-            record.setImageResource(R.drawable.ic_record_off);
             camera.lock();
+            record.setImageResource(R.drawable.ic_record_on);
             captureImage.setEnabled(true);
+
+            Intent video = new Intent(this, VideoPlayerActivity.class);
+            video.putExtra("path", IMG_DIR_PATH + "/" + videoFileName);
+            startActivity(video);
+            finish();
 
 //            uploadVideoToStorage();
 
-            initRecorder();
+//            initRecorder();
         }
     }
 

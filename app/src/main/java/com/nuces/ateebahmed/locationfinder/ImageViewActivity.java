@@ -5,6 +5,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 import android.location.Location;
@@ -55,6 +56,7 @@ public class ImageViewActivity extends AppCompatActivity {
     private DatabaseReference dbMessagesRef;
     private BroadcastReceiver locationBroadcastReceiver;
     private byte[] image;
+    private int orientation;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -70,6 +72,7 @@ public class ImageViewActivity extends AppCompatActivity {
         btnImageSend = (FloatingActionButton) findViewById(R.id.btnImageSend);
 
         image = getIntent().getByteArrayExtra("image");
+        orientation = getIntent().getIntExtra("orientation", 0);
         showImage(image);
         instance = LocationComponentsSingleton.getInstance(getApplicationContext());
 
@@ -88,7 +91,7 @@ public class ImageViewActivity extends AppCompatActivity {
         btnImageSend.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                saveImageOnLocalStorage(image, getIntent().getIntExtra("orientation", 0));
+                saveImageOnLocalStorage(image, orientation);
             }
         });
     }
@@ -116,12 +119,22 @@ public class ImageViewActivity extends AppCompatActivity {
     }
 
     private void showImage(byte[] data) {
-        imageView.setImageBitmap(BitmapFactory.decodeByteArray(data, 0, data.length));
         Matrix mat = new Matrix();
-        imageView.setScaleType(ImageView.ScaleType.MATRIX);
-        mat.postRotate(90f, imageView.getDrawable().getBounds().width() / 2,
-                imageView.getDrawable().getBounds().height() / 2);
-        imageView.setImageMatrix(mat);
+        switch (orientation) {
+            case ExifInterface.ORIENTATION_ROTATE_90:
+                mat.postRotate(90f);
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_180:
+                mat.postRotate(180f);
+                break;
+            case ExifInterface.ORIENTATION_ROTATE_270:
+                mat.postRotate(270f);
+                break;
+        }
+        Bitmap imageBitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+        imageBitmap = Bitmap.createBitmap(imageBitmap, 0, 0, imageBitmap.getWidth(),
+                imageBitmap.getHeight(), mat, true);
+        imageView.setImageBitmap(imageBitmap);
     }
 
     private void saveImageOnLocalStorage(byte[] data, int orientation) {
@@ -135,11 +148,6 @@ public class ImageViewActivity extends AppCompatActivity {
             fos = new FileOutputStream(imageFile);
             fos.write(data);
             fos.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        try {
             ExifInterface exif = new ExifInterface(imageFile.getAbsolutePath());
             exif.setAttribute(ExifInterface.TAG_ORIENTATION,
                     String.valueOf(orientation));

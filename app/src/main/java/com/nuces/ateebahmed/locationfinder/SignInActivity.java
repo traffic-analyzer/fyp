@@ -1,15 +1,9 @@
 package com.nuces.ateebahmed.locationfinder;
 
-import android.content.Context;
 import android.content.Intent;
-import android.location.Location;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.TextInputEditText;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.net.ConnectivityManagerCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatButton;
 import android.text.Editable;
@@ -19,8 +13,6 @@ import android.text.method.LinkMovementMethod;
 import android.text.style.ClickableSpan;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -61,16 +53,7 @@ public class SignInActivity extends AppCompatActivity {
 
         usernameListener = usernameAvailable();
 
-        userAuthListener = new FirebaseAuth.AuthStateListener() {
-            @Override
-            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                FirebaseUser fUser = firebaseAuth.getCurrentUser();
-                if (fUser != null && mUser != null) {
-                    session.createSession(mUser.getUsername(), fUser.getUid(), mUser.getEmail());
-                    startMapsActivity();
-                }
-            }
-        };
+        userAuthListener = getUserAuthListener();
 
         TextView regLink = (TextView) findViewById(R.id.regLink);
         etUsername = (TextInputEditText) findViewById(R.id.etUsername);
@@ -124,28 +107,25 @@ public class SignInActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        userAuth.addAuthStateListener(userAuthListener);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        removeUsernameListener();
-        userAuth.removeAuthStateListener(userAuthListener);
-        removeConnectionListener();
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         removeUsernameListener();
-        userAuth.removeAuthStateListener(userAuthListener);
+        removeAuthStateListener();
+        removeConnectionListener();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        userAuth.addAuthStateListener(userAuthListener);
+        addAuthStateListener();
     }
 
     private boolean existsInDatabase(DataSnapshot dataSnapshot) {
@@ -202,7 +182,6 @@ public class SignInActivity extends AppCompatActivity {
                 if (existsInDatabase(dataSnapshot))
                     signInWithFirebaseAuth();
                 else {
-                Log.e("SIGNIN", "Signin failed");
                 Toast.makeText(SignInActivity.this, "We could not find you here!",
                         Toast.LENGTH_SHORT).show();
                 }
@@ -221,7 +200,6 @@ public class SignInActivity extends AppCompatActivity {
                         new OnCompleteListener<AuthResult>() {
                             @Override
                             public void onComplete(@NonNull Task<AuthResult> task) {
-                                Log.i("SIGNIN", "onComplete: " + task.isSuccessful());
                                 if (!task.isSuccessful()) {
                                     Log.e("SIGNIN", "Signin failed");
                                     Toast.makeText(SignInActivity.this,
@@ -238,14 +216,12 @@ public class SignInActivity extends AppCompatActivity {
     }
 
     private void getInstances() {
-        if (isConnected) {
-            DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
-            dbUsersRef = dbRootRef.child("users");
-            userAuth = FirebaseAuth.getInstance();
-        }
+        DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
+        dbUsersRef = dbRootRef.child("users");
+        userAuth = FirebaseAuth.getInstance();
     }
 
-    private ValueEventListener checkConnectivity() {
+    private synchronized ValueEventListener checkConnectivity() {
         return new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
@@ -256,6 +232,19 @@ public class SignInActivity extends AppCompatActivity {
 
             @Override
             public void onCancelled(DatabaseError databaseError) {
+            }
+        };
+    }
+
+    private FirebaseAuth.AuthStateListener getUserAuthListener() {
+        return new FirebaseAuth.AuthStateListener() {
+            @Override
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                FirebaseUser fUser = firebaseAuth.getCurrentUser();
+                if (fUser != null && mUser != null) {
+                    session.createSession(mUser.getUsername(), fUser.getUid(), mUser.getEmail());
+                    startMapsActivity();
+                }
             }
         };
     }
@@ -272,6 +261,19 @@ public class SignInActivity extends AppCompatActivity {
         if (connectionListener != null) {
             conRef.removeEventListener(connectionListener);
             connectionListener = null;
+        }
+    }
+
+    private void addAuthStateListener() {
+        if (userAuthListener == null)
+            userAuthListener = getUserAuthListener();
+        userAuth.addAuthStateListener(userAuthListener);
+    }
+
+    private void removeAuthStateListener() {
+        if (userAuthListener != null) {
+            userAuth.removeAuthStateListener(userAuthListener);
+            userAuthListener = null;
         }
     }
 }

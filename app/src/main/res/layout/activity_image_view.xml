@@ -4,17 +4,20 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.nuces.ateebahmed.locationfinder.ImageViewActivity">
-
-    <android.support.v7.widget.AppCompatImageView
-        android:id="@+id/imageView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+    tools:context="com.nuces.ateebahmed.locationfinder.ImageViewActivity"
+    android:background="@android:color/black">
 
     <android.support.v7.widget.Toolbar
         android:id="@+id/simpleBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
+
+    <android.support.v7.widget.AppCompatImageView
+        android:id="@+id/imageView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@+id/simpleBar"
+        android:layout_above="@+id/btnImageSend" />
 
     <android.support.design.widget.FloatingActionButton
         android:id="@+id/btnImageSend"

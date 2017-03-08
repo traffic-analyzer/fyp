@@ -13,6 +13,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Location;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
@@ -52,10 +53,6 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
-import com.google.firebase.auth.AuthCredential;
-import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
@@ -115,8 +112,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-        isConnected = false;
-
         searchBar = (Toolbar) findViewById(R.id.searchBar);
         setSupportActionBar(searchBar);
         btnGotoMarker = (FloatingActionButton) findViewById(R.id.btnGotoMarker);
@@ -131,14 +126,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(View view) {
                 animateBtnAddContent();
-                Log.i("MAPS", "works");
             }
         });
         btnCamera = (FloatingActionButton) findViewById(R.id.btnCamera);
         btnCamera.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Log.i("MAPS", "Camera");
                 animateBtnAddContent();
             }
         });
@@ -147,7 +140,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(View view) {
                 animateBtnAddContent();
-                Log.i("MAPS", "Chat");
                 Intent chat = new Intent(getApplicationContext(), TextMessageActivity.class);
                 startActivity(chat);
             }
@@ -173,6 +165,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        isConnected = false;
+
+        getInstances();
+        setInstance();
+        setLocationBroacastReceiver();
+        localBroadcastManager = LocalBroadcastManager.getInstance(this);
 
         geofenceList = new ArrayList<>();
         statusResult = getStatusResult();
@@ -209,29 +208,21 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onStart() {
         super.onStart();
-
-        setInstance();
-
         addConnectionListener();
-
-        getInstances();
-
-        userVerified = getUserVerified();
-
-        if (isConnected)
-            userAuth.addAuthStateListener(userVerified);
-
-        localBroadcastManager = LocalBroadcastManager.getInstance(this);
-        setLocationBroacastReceiver();
-
+        addAuthStateListener();
         startBackgroundService();
     }
 
     @Override
-    protected void onStop() {
-        super.onStop();
-        userAuth.removeAuthStateListener(userVerified);
-        removeConnectionListener();
+    protected void onResume() {
+        super.onResume();
+        addConnectionListener();
+        addAuthStateListener();
+        attachUsersListener();
+        localBroadcastManager.registerReceiver(locationBroadcastReceiver,
+                new IntentFilter(BackgroundLocationService.ACTION));
+        if (!isLocationProviderEnabled())
+            openLocationDialogue();
     }
 
     @Override
@@ -245,18 +236,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             removeGeofence();
         }
         removeUserMarkers();
+        removeAuthStateListener();
+        removeConnectionListener();
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        if (gClient.isConnected() && locUpd) {
-            attachUsersListener();
-        }
-        localBroadcastManager.registerReceiver(locationBroadcastReceiver,
-                new IntentFilter(BackgroundLocationService.ACTION));
-        instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        checkLocSettings();
+    protected void onStop() {
+        super.onStop();
+        removeAuthStateListener();
+        removeConnectionListener();
     }
 
     @Override
@@ -275,6 +263,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
                 break;
             case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
+                signalServiceToStop();
                 Log.e(TAG, "Location settings cannot be done");
                 Toast.makeText(this, "Enable Location in Setttings", Toast.LENGTH_LONG).show();
                 break;
@@ -283,13 +272,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        switch (requestCode) {
+        switch (resultCode) {
             case Activity.RESULT_OK:
-                sendLocationUpdateSignal(LocationRequest.PRIORITY_HIGH_ACCURACY);
-                Log.i(TAG, "Okay");
+                    sendLocationUpdateSignal(LocationRequest.PRIORITY_HIGH_ACCURACY);
+                    Log.i(TAG, "activity result okay");
                 break;
             case Activity.RESULT_CANCELED:
-                Log.e(TAG, "cancelled");
+                    signalServiceToStop();
+                    Log.e(TAG, "activity result cancelled");
                 break;
         }
     }
@@ -344,6 +334,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     Log.i(TAG, "rechecking permission");
                     checkLocSettings();
                 } else {
+                    signalServiceToStop();
                     Toast.makeText(this, "Allow location to send or receive updates",
                             Toast.LENGTH_LONG).show();
                 }
@@ -535,10 +526,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                     {Manifest.permission.ACCESS_FINE_LOCATION}, CHECK_SETTINGS);
         } else {
             Log.i(TAG, "checking gps");
-            PendingResult<LocationSettingsResult> res = LocationServices.SettingsApi
-                    .checkLocationSettings(gClient, locSettingReq);
-            res.setResultCallback(this);
+            openLocationDialogue();
         }
+    }
+
+    private void openLocationDialogue() {
+        PendingResult<LocationSettingsResult> res = LocationServices.SettingsApi
+                .checkLocationSettings(gClient, locSettingReq);
+        res.setResultCallback(this);
     }
 
     private void animateBtnAddContent() {
@@ -592,6 +587,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             gClient = instance.getGoogleApiClient();
             locSettingReq = instance.getLocationSettingsRequest();
         }
+        instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
     }
 
     private void sendLocationUpdateSignal(int priority) {
@@ -602,6 +598,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         localBroadcastManager.sendBroadcast(i);
     }
 
+    private void signalServiceToStop() {
+        Intent i = new Intent(ACTION);
+        i.putExtra("stop", true);
+        localBroadcastManager.sendBroadcast(i);
+    }
+
     private ValueEventListener checkConnectivity() {
         return new ValueEventListener() {
             @Override
@@ -609,6 +611,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 if (dataSnapshot.getValue(Boolean.class))
                     isConnected = true;
                 else isConnected = false;
+                Log.i(TAG, "connection status: " + isConnected);
             }
 
             @Override
@@ -632,32 +635,52 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         }
     }
 
-    private void getInstances() {
-        if (isConnected) {
-            DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
-            dbUsersRef = dbRootRef.child("users");
-            userAuth = FirebaseAuth.getInstance();
+    private void addAuthStateListener() {
+        if (userVerified == null)
+            userVerified = getUserVerified();
+        userAuth.addAuthStateListener(userVerified);
+        Log.i(TAG, "auth listener added");
+    }
+
+    private void removeAuthStateListener() {
+        if (userVerified != null) {
+            userAuth.removeAuthStateListener(userVerified);
+            userVerified = null;
+            Log.i(TAG, "auth listener removed");
         }
+    }
+
+    private void getInstances() {
+        DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
+        dbUsersRef = dbRootRef.child("users");
+        userAuth = FirebaseAuth.getInstance();
+        Log.i(TAG, "got instances");
     }
 
     private FirebaseAuth.AuthStateListener getUserVerified() {
         return new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                Log.i(TAG, "checking user");
                 if (firebaseAuth.getCurrentUser() == null)
                     startSignInActivity();
+                else removeAuthStateListener();
             }
         };
     }
 
+    private boolean isLocationProviderEnabled() {
+        LocationManager lm = (LocationManager) getApplicationContext()
+                .getSystemService(Context.LOCATION_SERVICE);
+        return lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+    }
 
     private final class LocationBroadcastReceiver extends BroadcastReceiver {
 
         @Override
         public void onReceive(Context context, Intent intent) {
-            boolean client = intent.getBooleanExtra("client", false),
-                    request = intent.getBooleanExtra("request", false);
-            if (client && request) {
+            boolean request = intent.getBooleanExtra("request", false);
+            if (request) {
                 Log.i(TAG, "checking for permission");
                 checkLocSettings();
             }
