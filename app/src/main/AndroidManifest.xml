@@ -30,7 +30,7 @@
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-        <activity android:name=".VoiceRecorderActivity">
+        <activity android:name=".MapsActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -40,7 +40,7 @@
         <activity android:name=".RegisterActivity" />
         <activity android:name=".SignInActivity" />
         <activity android:name=".ImageViewActivity" />
-        <activity android:name=".MapsActivity" />
+        <activity android:name=".VoiceRecorderActivity" />
         <activity android:name=".CameraActivity" />
         <activity android:name=".TextMessageActivity" />
 
