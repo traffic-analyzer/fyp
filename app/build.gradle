@@ -5,7 +5,7 @@ android {
     buildToolsVersion "25.0.0"
     defaultConfig {
         applicationId "com.nuces.ateebahmed.locationfinder"
-        minSdkVersion 10
+        minSdkVersion 14
         targetSdkVersion 25
         versionCode 1
         versionName "1.0"
@@ -29,6 +29,8 @@ android {
         exclude 'META-INF/NOTICE.txt'
         exclude 'META-INF/BCKEY.DSA'
         exclude 'AUTHORS'
+    }
+    productFlavors {
     }
 }
 

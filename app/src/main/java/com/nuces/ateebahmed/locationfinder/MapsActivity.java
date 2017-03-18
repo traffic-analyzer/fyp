@@ -133,6 +133,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(View view) {
                 animateBtnAddContent();
+                Intent camera = new Intent(getApplicationContext(), CameraActivity.class);
+                startActivity(camera);
             }
         });
         btnChat = (FloatingActionButton) findViewById(R.id.btnChat);
@@ -228,7 +230,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onPause() {
         super.onPause();
-        sendLocationUpdateSignal(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
         localBroadcastManager.unregisterReceiver(locationBroadcastReceiver);
         detachUsersListener();
         if (!geofenceList.isEmpty()) {
@@ -243,6 +244,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onStop() {
         super.onStop();
+        sendLocationUpdateSignal(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
         removeAuthStateListener();
         removeConnectionListener();
     }
@@ -531,6 +533,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void openLocationDialogue() {
+        if (instance.getLocationRequest().getPriority() != LocationRequest.PRIORITY_HIGH_ACCURACY)
+            instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
         PendingResult<LocationSettingsResult> res = LocationServices.SettingsApi
                 .checkLocationSettings(gClient, locSettingReq);
         res.setResultCallback(this);

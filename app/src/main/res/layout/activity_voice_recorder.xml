@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.v7.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<android.support.v7.widget.LinearLayoutCompat
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/layoutAudio"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@android:color/darker_gray"
+    android:paddingTop="@dimen/fab_second_mini_button_vertical_margin"
     tools:context="com.nuces.ateebahmed.locationfinder.VoiceRecorderActivity"
     android:orientation="vertical">
 
@@ -26,5 +29,28 @@
         android:layout_gravity="center"
         android:layout_marginBottom="@dimen/activity_horizontal_margin"
         android:layout_marginTop="@dimen/activity_horizontal_margin"/>
+
+    <android.support.v7.widget.AppCompatButton
+        android:id="@+id/btnAudSend"
+        android:text="@string/btnSend"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/activity_horizontal_margin"
+        android:layout_marginBottom="@dimen/activity_horizontal_margin"
+        android:layout_marginLeft="@dimen/material_design_button_margin"
+        android:layout_marginRight="@dimen/material_design_button_margin"
+        android:layout_marginEnd="@dimen/material_design_button_margin"
+        android:layout_marginStart="@dimen/material_design_button_margin"
+        android:paddingLeft="@dimen/material_design_button_padding"
+        android:paddingRight="@dimen/material_design_button_padding"
+        android:paddingStart="@dimen/material_design_button_padding"
+        android:paddingEnd="@dimen/material_design_button_padding"
+        android:height="@dimen/material_design_button_height"
+        android:minWidth="@dimen/material_design_button_min_width" />
+
+    <android.support.v7.widget.LinearLayoutCompat
+        android:id="@+id/audioController"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 
 </android.support.v7.widget.LinearLayoutCompat>

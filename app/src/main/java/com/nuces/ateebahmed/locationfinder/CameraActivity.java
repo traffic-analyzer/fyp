@@ -272,9 +272,9 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                 Camera.Parameters param = camera.getParameters();
                 param.setFlashMode(!flashmode ? Camera.Parameters.FLASH_MODE_ON
                         : Camera.Parameters.FLASH_MODE_OFF);
-                changeFlashIcon(flashmode);
                 camera.setParameters(param);
                 flashmode = !flashmode;
+                changeFlashIcon(flashmode);
             } catch (Exception e) {
                 // TODO: handle exception
             }
@@ -417,7 +417,6 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
 
     private void startRecording() {
         if (!camMode) {
-            Log.i(TAG, camMode + "");
             camMode = true;
             captureImage.setEnabled(false);
             camera.unlock();
@@ -425,7 +424,6 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
             videoRecorder.start();
             record.setImageResource(R.drawable.ic_record_off);
         } else {
-            Log.i(TAG, camMode + "");
             camMode = false;
             videoRecorder.stop();
             camera.lock();
@@ -442,36 +440,6 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
 //            initRecorder();
         }
     }
-
-    /*private void uploadVideoToStorage() {
-        videoStorageRef.child(videoFileName).putFile(Uri.fromFile(new File(IMG_DIR_PATH + "/" +
-                videoFileName))).addOnSuccessListener(this,
-                new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                    @Override
-                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                        if (taskSnapshot.getDownloadUrl() != null) {
-                            if (session.isLoggedIn()) {
-                                Message msg = new Message(session.getSPUsername(),
-                                        loc.getLongitude(), loc.getLatitude(),
-                                        System.currentTimeMillis());
-                                msg.setVideo(taskSnapshot.getDownloadUrl().toString());
-
-                                dbMessagesRef.push().setValue(msg);
-
-                                Toast.makeText(CameraActivity.this, "Thank you! Your response "
-                                        + "has been recorded", Toast.LENGTH_LONG).show();
-                            }
-                        }
-                    }
-                }).addOnFailureListener(this, new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                Toast.makeText(CameraActivity.this, "There was an error uploading your response",
-                        Toast.LENGTH_LONG).show();
-                Log.e(TAG, e.getMessage());
-            }
-        });
-    }*/
 
     private void changeCameraMode(boolean state) {
         if (state) {

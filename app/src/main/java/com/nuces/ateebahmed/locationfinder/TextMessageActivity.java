@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.Location;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatButton;
@@ -16,6 +17,7 @@ import android.widget.Button;
 import android.widget.RadioGroup;
 import android.widget.Toast;
 
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
@@ -34,6 +36,8 @@ public class TextMessageActivity extends AppCompatActivity {
     private RadioGroup rdGroup;
     private AppCompatRadioButton rdBlocked, rdSlowPace, rdNormal, rdSpeedy, rdNone;
     private AppCompatButton btnOptSend;
+    private FirebaseAuth userAuth;
+    private FirebaseAuth.AuthStateListener userAuthListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +63,7 @@ public class TextMessageActivity extends AppCompatActivity {
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
         locationReceiver = new LocationBroadcastReceiver();
 
-        session = new UserSession(getApplicationContext());
+        userAuth = FirebaseAuth.getInstance();
 
         dbMessagesRef = FirebaseDatabase.getInstance().getReference().child("messages");
 
@@ -68,6 +72,7 @@ public class TextMessageActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        addAuthStateListener();
         localBroadcastManager.registerReceiver(locationReceiver,
                 new IntentFilter(BackgroundLocationService.ACTION));
     }
@@ -76,6 +81,7 @@ public class TextMessageActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         localBroadcastManager.unregisterReceiver(locationReceiver);
+        removeAuthStateListener();
     }
 
     private View.OnClickListener onButtonPressed() {
@@ -121,7 +127,7 @@ public class TextMessageActivity extends AppCompatActivity {
     }
 
     private void sendMessage(AppCompatRadioButton b) {
-        if (location != null) {
+        if (location != null && session != null) {
             Message msg = new Message(b.getText().toString(), session.getSPUsername(),
                     location.getLongitude(), location.getLatitude(), System.currentTimeMillis());
             dbMessagesRef.push().setValue(msg, new DatabaseReference.CompletionListener() {
@@ -147,6 +153,33 @@ public class TextMessageActivity extends AppCompatActivity {
                     .show();
             Log.e(TAG, "location not available");
         }
+    }
+
+    private void addAuthStateListener() {
+        if (userAuthListener == null)
+            userAuthListener = getUserAuthState();
+        userAuth.addAuthStateListener(userAuthListener);
+        Log.i(TAG, "auth listener added");
+    }
+
+    private void removeAuthStateListener() {
+        if (userAuthListener != null) {
+            userAuth.removeAuthStateListener(userAuthListener);
+            userAuthListener = null;
+            Log.i(TAG, "auth listener removed");
+        }
+    }
+
+    private FirebaseAuth.AuthStateListener getUserAuthState() {
+        return new FirebaseAuth.AuthStateListener() {
+            @Override
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                if (firebaseAuth.getCurrentUser() != null) {
+                    session = new UserSession(getApplicationContext());
+                    removeAuthStateListener();
+                }
+            }
+        };
     }
 
     private final class LocationBroadcastReceiver extends BroadcastReceiver {

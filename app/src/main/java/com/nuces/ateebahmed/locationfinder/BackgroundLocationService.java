@@ -292,9 +292,8 @@ public class BackgroundLocationService extends Service implements LocationListen
                     stopSelf();
                 else {
                     if (dbUserRef == null) {
-                        UserSession session = new UserSession(getApplicationContext());
                         dbUserRef = FirebaseDatabase.getInstance().getReference().child("users")
-                                .child(session.getDbKey());
+                                .child(firebaseAuth.getCurrentUser().getUid());
                     }
                     removeAuthStateListener();
                 }

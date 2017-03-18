@@ -28,6 +28,7 @@ import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.storage.FirebaseStorage;
@@ -49,14 +50,15 @@ public class ImageViewActivity extends AppCompatActivity {
     private FloatingActionButton btnImageSend;
     private static final String IMG_DIR_PATH = Environment.getExternalStorageDirectory()
             .getAbsolutePath() + "/DCIM/LocationFinder";
-    private StorageReference mediaStorageRef, imageStorageRef, videoStorageRef;
-    private LocationComponentsSingleton instance;
+    private StorageReference mediaStorageRef, imageStorageRef;
     private UserSession session;
     private Location loc;
     private DatabaseReference dbMessagesRef;
     private BroadcastReceiver locationBroadcastReceiver;
     private byte[] image;
     private int orientation;
+    private FirebaseAuth userAuth;
+    private FirebaseAuth.AuthStateListener userAuthListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,19 +76,16 @@ public class ImageViewActivity extends AppCompatActivity {
         image = getIntent().getByteArrayExtra("image");
         orientation = getIntent().getIntExtra("orientation", 0);
         showImage(image);
-        instance = LocationComponentsSingleton.getInstance(getApplicationContext());
 
         locationBroadcastReceiver = new ImageViewActivity.LocationBroadcastReceiver();
 
-        dbMessagesRef = FirebaseDatabase.getInstance().getReference().child("messages");
+        userAuth = FirebaseAuth.getInstance();
 
-        session = new UserSession(getApplicationContext());
+        dbMessagesRef = FirebaseDatabase.getInstance().getReference().child("messages");
 
         mediaStorageRef = FirebaseStorage.getInstance().getReference();
 
         imageStorageRef = mediaStorageRef.child("images");
-
-        videoStorageRef = mediaStorageRef.child("videos");
 
         btnImageSend.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -94,6 +93,8 @@ public class ImageViewActivity extends AppCompatActivity {
                 saveImageOnLocalStorage(image, orientation);
             }
         });
+
+        createDirs();
     }
 
     @Override
@@ -108,6 +109,7 @@ public class ImageViewActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        addAuthStateListener();
         LocalBroadcastManager.getInstance(this).registerReceiver(locationBroadcastReceiver,
                 new IntentFilter(BackgroundLocationService.ACTION));
     }
@@ -116,6 +118,7 @@ public class ImageViewActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         LocalBroadcastManager.getInstance(this).unregisterReceiver(locationBroadcastReceiver);
+        removeAuthStateListener();
     }
 
     private void showImage(byte[] data) {
@@ -212,6 +215,33 @@ public class ImageViewActivity extends AppCompatActivity {
                 Log.w(TAG, "could not make directories");
             }
         }
+    }
+
+    private void addAuthStateListener() {
+        if (userAuthListener == null)
+            userAuthListener = getUserAuthState();
+        userAuth.addAuthStateListener(userAuthListener);
+        Log.i(TAG, "auth listener added");
+    }
+
+    private void removeAuthStateListener() {
+        if (userAuthListener != null) {
+            userAuth.removeAuthStateListener(userAuthListener);
+            userAuthListener = null;
+            Log.i(TAG, "auth listener removed");
+        }
+    }
+
+    private FirebaseAuth.AuthStateListener getUserAuthState() {
+        return new FirebaseAuth.AuthStateListener() {
+            @Override
+            public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
+                if (firebaseAuth.getCurrentUser() != null) {
+                    session = new UserSession(getApplicationContext());
+                    removeAuthStateListener();
+                }
+            }
+        };
     }
 
     private final class LocationBroadcastReceiver extends BroadcastReceiver {
