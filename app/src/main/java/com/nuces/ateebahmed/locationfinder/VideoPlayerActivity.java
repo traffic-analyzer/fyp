@@ -1,5 +1,9 @@
 package com.nuces.ateebahmed.locationfinder;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.SurfaceTexture;
 import android.location.Location;
 import android.media.AudioManager;
@@ -8,6 +12,7 @@ import android.net.Uri;
 import android.os.Handler;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
@@ -52,6 +57,8 @@ public class VideoPlayerActivity extends AppCompatActivity implements
     private FirebaseAuth userAuth;
     private FirebaseAuth.AuthStateListener userAuthListener;
     private UserSession session;
+    private Location location;
+    private BroadcastReceiver locationReceiver;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -83,6 +90,8 @@ public class VideoPlayerActivity extends AppCompatActivity implements
         });
 
         videoController = new MediaController(this);
+
+        locationReceiver = receiveLocation();
     }
 
     @Override
@@ -198,11 +207,14 @@ public class VideoPlayerActivity extends AppCompatActivity implements
     protected void onResume() {
         super.onResume();
         addAuthStateListener();
+        LocalBroadcastManager.getInstance(this).registerReceiver(locationReceiver,
+                new IntentFilter(BackgroundLocationService.ACTION));
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(locationReceiver);
         removeAuthStateListener();
     }
 
@@ -227,12 +239,12 @@ public class VideoPlayerActivity extends AppCompatActivity implements
                     public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
                         if (taskSnapshot.getDownloadUrl() != null) {
                             if (session.isLoggedIn()) {
-                                /*Message msg = new Message(session.getSPUsername(),
-                                        loc.getLongitude(), loc.getLatitude(),
+                                Message msg = new Message(session.getSPUsername(),
+                                        location.getLongitude(), location.getLatitude(),
                                         System.currentTimeMillis());
                                 msg.setVideo(taskSnapshot.getDownloadUrl().toString());
 
-                                dbMessagesRef.push().setValue(msg);*/
+                                dbMessagesRef.push().setValue(msg);
 
                                 Toast.makeText(VideoPlayerActivity.this, "Thank you! Your response "
                                         + "has been recorded", Toast.LENGTH_LONG).show();
@@ -268,10 +280,22 @@ public class VideoPlayerActivity extends AppCompatActivity implements
         return new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                if (firebaseAuth.getCurrentUser() != null) {
+                if (firebaseAuth.getCurrentUser() != null && session == null)
                     session = new UserSession(getApplicationContext());
-                    removeAuthStateListener();
-                }
+            }
+        };
+    }
+
+    private void setLocation(Location location) {
+        this.location = location;
+    }
+
+    private BroadcastReceiver receiveLocation() {
+        return new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent.getExtras().get("location") != null)
+                    setLocation((Location) intent.getExtras().get("location"));
             }
         };
     }

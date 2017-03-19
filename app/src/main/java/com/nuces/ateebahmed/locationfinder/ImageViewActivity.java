@@ -77,7 +77,7 @@ public class ImageViewActivity extends AppCompatActivity {
         orientation = getIntent().getIntExtra("orientation", 0);
         showImage(image);
 
-        locationBroadcastReceiver = new ImageViewActivity.LocationBroadcastReceiver();
+        locationBroadcastReceiver = locationReceiver();
 
         userAuth = FirebaseAuth.getInstance();
 
@@ -236,20 +236,24 @@ public class ImageViewActivity extends AppCompatActivity {
         return new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                if (firebaseAuth.getCurrentUser() != null) {
+                if (firebaseAuth.getCurrentUser() != null && session == null)
                     session = new UserSession(getApplicationContext());
-                    removeAuthStateListener();
-                }
             }
         };
     }
 
-    private final class LocationBroadcastReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (intent.getExtras().get("location") != null) {
-                loc = (Location) intent.getExtras().get("location");
+    private void setLocation(Location location) {
+        loc = location;
+    }
+
+    private BroadcastReceiver locationReceiver() {
+        return new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent.getExtras().get("location") != null) {
+                    setLocation((Location) intent.getExtras().get("location"));
+                }
             }
-        }
+        };
     }
 }

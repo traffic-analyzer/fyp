@@ -49,7 +49,6 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
     private static final String TAG = "VoiceRecorderActivity",
             AUD_DIR_PATH = Environment.getExternalStorageDirectory().getAbsolutePath() +
                     "/DCIM/LocationFinder";
-    private LocationComponentsSingleton instance;
     private LocalBroadcastManager localBroadcastManager;
     private BroadcastReceiver locationReceiver;
     private DatabaseReference dbMessagesRef;
@@ -73,9 +72,9 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
         setContentView(R.layout.activity_voice_recorder);
 
         handler = new Handler();
-        setInstance();
+
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
-        locationReceiver = new VoiceRecorderActivity.LocationBroadcastReceiver();
+        locationReceiver = locationReceiver();
 
         userAuth = FirebaseAuth.getInstance();
 
@@ -151,24 +150,6 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
         }
     }
 
-    private void setInstance() {
-        if (instance == null) {
-            instance = LocationComponentsSingleton.getInstance(this);
-        }
-    }
-
-    private boolean isRecordingAllowed() {
-        return (ContextCompat.checkSelfPermission(getApplicationContext(),
-                android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
-    }
-
-    private void getRecordingPermission() {
-        if (!isRecordingAllowed())
-            ActivityCompat.requestPermissions(this, new String[]
-                            {android.Manifest.permission.RECORD_AUDIO}, REQUEST_CODE_AUDIO);
-        else startRecording();
-    }
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
                                            @NonNull int[] grantResults) {
@@ -185,6 +166,73 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
                             Toast.LENGTH_SHORT).show();
                 }
         }
+    }
+
+    @Override
+    public void start() {
+        audioPlayer.start();
+    }
+
+    @Override
+    public void pause() {
+        audioPlayer.pause();
+    }
+
+    @Override
+    public int getDuration() {
+        return audioPlayer.getDuration();
+    }
+
+    @Override
+    public int getCurrentPosition() {
+        return audioPlayer.getCurrentPosition();
+    }
+
+    @Override
+    public void seekTo(int i) {
+        audioPlayer.seekTo(i);
+    }
+
+    @Override
+    public boolean isPlaying() {
+        return audioPlayer.isPlaying();
+    }
+
+    @Override
+    public int getBufferPercentage() {
+        return 0;
+    }
+
+    @Override
+    public boolean canPause() {
+        return true;
+    }
+
+    @Override
+    public boolean canSeekBackward() {
+        return true;
+    }
+
+    @Override
+    public boolean canSeekForward() {
+        return true;
+    }
+
+    @Override
+    public int getAudioSessionId() {
+        return 0;
+    }
+
+    @Override
+    public void onPrepared(MediaPlayer mediaPlayer) {
+        audioController.setAnchorView(findViewById(R.id.audioController));
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                audioController.setEnabled(true);
+                audioController.show(0);
+            }
+        });
     }
 
     private void initRecorder() {
@@ -277,86 +325,35 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
         return new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                if (firebaseAuth.getCurrentUser() != null) {
+                if (firebaseAuth.getCurrentUser() != null && session == null)
                     session = new UserSession(getApplicationContext());
-                    removeAuthStateListener();
-                }
             }
         };
     }
 
-    @Override
-    public void start() {
-        audioPlayer.start();
+    private void setLocation(Location location) {
+        this.location = location;
     }
 
-    @Override
-    public void pause() {
-        audioPlayer.pause();
-    }
-
-    @Override
-    public int getDuration() {
-        return audioPlayer.getDuration();
-    }
-
-    @Override
-    public int getCurrentPosition() {
-        return audioPlayer.getCurrentPosition();
-    }
-
-    @Override
-    public void seekTo(int i) {
-        audioPlayer.seekTo(i);
-    }
-
-    @Override
-    public boolean isPlaying() {
-        return audioPlayer.isPlaying();
-    }
-
-    @Override
-    public int getBufferPercentage() {
-        return 0;
-    }
-
-    @Override
-    public boolean canPause() {
-        return true;
-    }
-
-    @Override
-    public boolean canSeekBackward() {
-        return true;
-    }
-
-    @Override
-    public boolean canSeekForward() {
-        return true;
-    }
-
-    @Override
-    public int getAudioSessionId() {
-        return 0;
-    }
-
-    @Override
-    public void onPrepared(MediaPlayer mediaPlayer) {
-        audioController.setAnchorView(findViewById(R.id.audioController));
-        handler.post(new Runnable() {
+    private BroadcastReceiver locationReceiver() {
+        return new BroadcastReceiver() {
             @Override
-            public void run() {
-                audioController.setEnabled(true);
-                audioController.show(0);
+            public void onReceive(Context context, Intent intent) {
+                if (intent.getExtras().get("location") != null)
+                    setLocation((Location) intent.getExtras().get("location"));
             }
-        });
+        };
     }
 
-    private final class LocationBroadcastReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (intent.getExtras().get("location") != null)
-                location = (Location) intent.getExtras().get("location");
-        }
+    private boolean isRecordingAllowed() {
+        return (ContextCompat.checkSelfPermission(getApplicationContext(),
+                android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
+    }
+
+    private void getRecordingPermission() {
+        if (!isRecordingAllowed())
+            ActivityCompat.requestPermissions(this, new String[]
+                    {android.Manifest.permission.RECORD_AUDIO}, REQUEST_CODE_AUDIO);
+        else startRecording();
     }
 }

@@ -565,7 +565,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void setLocationBroacastReceiver() {
-        locationBroadcastReceiver = new LocationBroadcastReceiver();
+        locationBroadcastReceiver = receiveServiceSignals();
     }
 
     private boolean isServiceRunning() {
@@ -668,7 +668,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 Log.i(TAG, "checking user");
                 if (firebaseAuth.getCurrentUser() == null)
                     startSignInActivity();
-                else removeAuthStateListener();
             }
         };
     }
@@ -679,19 +678,24 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         return lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
     }
 
-    private final class LocationBroadcastReceiver extends BroadcastReceiver {
+    private void setLocation(Location location) {
+        loc = location;
+    }
 
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            boolean request = intent.getBooleanExtra("request", false);
-            if (request) {
-                Log.i(TAG, "checking for permission");
-                checkLocSettings();
+    private BroadcastReceiver receiveServiceSignals() {
+        return new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                boolean request = intent.getBooleanExtra("request", false);
+                if (request) {
+                    Log.i(TAG, "checking for permission");
+                    checkLocSettings();
+                }
+                if (intent.getExtras().get("location") != null) {
+                    setLocation((Location) intent.getExtras().get("location"));
+                    onLocUpdate(new LatLng(loc.getLatitude(), loc.getLongitude()));
+                }
             }
-            if (intent.getExtras().get("location") != null) {
-                loc = (Location) intent.getExtras().get("location");
-                onLocUpdate(new LatLng(loc.getLatitude(), loc.getLongitude()));
-            }
-        }
+        };
     }
 }

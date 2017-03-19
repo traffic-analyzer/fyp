@@ -295,7 +295,6 @@ public class BackgroundLocationService extends Service implements LocationListen
                         dbUserRef = FirebaseDatabase.getInstance().getReference().child("users")
                                 .child(firebaseAuth.getCurrentUser().getUid());
                     }
-                    removeAuthStateListener();
                 }
             }
         };

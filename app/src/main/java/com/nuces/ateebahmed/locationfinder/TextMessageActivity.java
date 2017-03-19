@@ -27,7 +27,6 @@ import models.Message;
 public class TextMessageActivity extends AppCompatActivity {
 
     private static final String TAG = "TextMessageActivity";
-    private LocationComponentsSingleton instance;
     private LocalBroadcastManager localBroadcastManager;
     private BroadcastReceiver locationReceiver;
     private DatabaseReference dbMessagesRef;
@@ -59,9 +58,8 @@ public class TextMessageActivity extends AppCompatActivity {
         btnOptSend = (AppCompatButton) findViewById(R.id.btnOptSend);
         btnOptSend.setOnClickListener(onButtonPressed());
 
-        setInstance();
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
-        locationReceiver = new LocationBroadcastReceiver();
+        locationReceiver = locationReceiver();
 
         userAuth = FirebaseAuth.getInstance();
 
@@ -120,12 +118,6 @@ public class TextMessageActivity extends AppCompatActivity {
         Toast.makeText(this, b.getText().toString() + " was pressed", Toast.LENGTH_SHORT).show();
     }
 
-    private void setInstance() {
-        if (instance == null) {
-            instance = LocationComponentsSingleton.getInstance(this);
-        }
-    }
-
     private void sendMessage(AppCompatRadioButton b) {
         if (location != null && session != null) {
             Message msg = new Message(b.getText().toString(), session.getSPUsername(),
@@ -174,19 +166,23 @@ public class TextMessageActivity extends AppCompatActivity {
         return new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                if (firebaseAuth.getCurrentUser() != null) {
+                if (firebaseAuth.getCurrentUser() != null && session == null)
                     session = new UserSession(getApplicationContext());
-                    removeAuthStateListener();
-                }
             }
         };
     }
 
-    private final class LocationBroadcastReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            if (intent.getExtras().get("location") != null)
-                location = (Location) intent.getExtras().get("location");
-        }
+    private void setLocation(Location location) {
+        this.location = location;
+    }
+
+    private BroadcastReceiver locationReceiver() {
+        return new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent.getExtras().get("location") != null)
+                    setLocation((Location)intent.getExtras().get("location"));
+            }
+        };
     }
 }
