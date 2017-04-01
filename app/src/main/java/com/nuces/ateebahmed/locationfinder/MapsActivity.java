@@ -48,6 +48,8 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -61,12 +63,14 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 
 import models.User;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback,
-        ResultCallback<LocationSettingsResult> {
+        ResultCallback<LocationSettingsResult>, GoogleMap.OnMarkerClickListener {
 
     protected static final String ACTION = "com.nuces.ateebahmed.locationfinder.MapsActivity";
     private static final String TAG = "MapsActivity";
@@ -85,12 +89,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private GoogleMap mMap;
     protected Marker marker;
     protected Circle circle;
-    private ArrayList<Marker> userMarkers;
+    private ArrayList<Marker> userMarkers, messageMarkers;
     protected ArrayList<Geofence> geofenceList;
 
-    private DatabaseReference dbUsersRef, conRef;
+    private DatabaseReference dbUsersRef, conRef, dbMessagesRef;
     private ValueEventListener connectionListener;
-    private ChildEventListener usersLocationListener;
+    private ChildEventListener usersLocationListener, messageListener;
 
     private FirebaseAuth userAuth;
     private FirebaseAuth.AuthStateListener userVerified;
@@ -178,6 +182,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         geofenceList = new ArrayList<>();
         statusResult = getStatusResult();
         userMarkers = new ArrayList<>();
+        messageMarkers = new ArrayList<>();
         sharedPreferences = getSharedPreferences(sharedPreferencesName, MODE_PRIVATE);
         geofenceAdded = sharedPreferences.getBoolean(geofencesAddedKey, false);
         locUpd = false;
@@ -200,6 +205,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         // Move the camera to Karachi, PK
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(24.8615, 67.0099), 10));
+        mMap.setOnMarkerClickListener(this);
 
         // Add a marker in Sydney and move the camera
         /*LatLng sydney = new LatLng(0, 0);
@@ -221,6 +227,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         addConnectionListener();
         addAuthStateListener();
         attachUsersListener();
+        attachMessagesListener();
         localBroadcastManager.registerReceiver(locationBroadcastReceiver,
                 new IntentFilter(BackgroundLocationService.ACTION));
         if (!isLocationProviderEnabled())
@@ -232,6 +239,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         super.onPause();
         localBroadcastManager.unregisterReceiver(locationBroadcastReceiver);
         detachUsersListener();
+        detachMessagesListener();
         if (!geofenceList.isEmpty()) {
             geofenceList.remove(0);
             removeGeofence();
@@ -657,6 +665,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void getInstances() {
         DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
         dbUsersRef = dbRootRef.child("users");
+        dbMessagesRef = dbRootRef.child("messages");
         userAuth = FirebaseAuth.getInstance();
         Log.i(TAG, "got instances");
     }
@@ -697,5 +706,61 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             }
         };
+    }
+
+    private void attachMessagesListener() {
+        if(messageListener == null) {
+            messageListener = new ChildEventListener() {
+                @Override
+                public void onChildAdded(DataSnapshot dataSnapshot, String s) {
+                    addMessageMarkers(dataSnapshot);
+                }
+
+                @Override
+                public void onChildChanged(DataSnapshot dataSnapshot, String s) {}
+
+                @Override
+                public void onChildRemoved(DataSnapshot dataSnapshot) {}
+
+                @Override
+                public void onChildMoved(DataSnapshot dataSnapshot, String s) {}
+
+                @Override
+                public void onCancelled(DatabaseError databaseError) {}
+            };
+
+            dbMessagesRef.addChildEventListener(messageListener);
+        }
+    }
+
+    private void detachMessagesListener() {
+        if (messageListener != null) {
+            dbMessagesRef.removeEventListener(messageListener);
+            messageListener = null;
+        }
+    }
+
+    private void addMessageMarkers(DataSnapshot dataSnapshot) {
+        Date date = new Date(dataSnapshot.child("timestamp").getValue(Long.class));
+        messageMarkers.add(mMap.addMarker(new MarkerOptions()
+                .position(new LatLng((Double) dataSnapshot.child("latitude").getValue(),
+                        (Double) dataSnapshot.child("longitude").getValue()))
+                .title(new SimpleDateFormat("d MMM yyyy HH:mm a").format(date))
+                .icon(setMarkerIcon(dataSnapshot))));
+    }
+
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+        return false;
+    }
+
+    private BitmapDescriptor setMarkerIcon(DataSnapshot dataSnapshot) {
+        if (dataSnapshot.hasChild("image"))
+            return BitmapDescriptorFactory.fromResource(R.drawable.ic_camera);
+        else if(dataSnapshot.hasChild("audio"))
+            return BitmapDescriptorFactory.fromResource(R.drawable.ic_mic);
+        else if (dataSnapshot.hasChild("video"))
+            return BitmapDescriptorFactory.fromResource(R.drawable.ic_video);
+        else return BitmapDescriptorFactory.fromResource(R.drawable.ic_message);
     }
 }
