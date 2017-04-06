@@ -1,23 +1,16 @@
 package com.nuces.ateebahmed.locationfinder;
 
-import android.content.Context;
 import android.content.Intent;
-import android.location.Location;
-import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.design.widget.TextInputEditText;
 import android.support.design.widget.TextInputLayout;
-import android.support.v4.net.ConnectivityManagerCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatButton;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -53,19 +46,15 @@ public class RegisterActivity extends AppCompatActivity {
 
         isConnected = false;
 
-        addConnectionListener();
-
-        getInstances();
-
         usernameListener = usernameAvailable();
 
         userAuthListener = new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                if (isConnected) {
+                if (isConnected && firebaseAuth.getCurrentUser() != null) {
                     addValuesInDatabase(firebaseAuth.getCurrentUser());
                     saveNewUserSession(firebaseAuth.getCurrentUser());
-                    startMapsActivtity();
+                    finish();
                 } else {
                     Toast.makeText(getApplicationContext(), "No Internet connection available",
                             Toast.LENGTH_LONG).show();
@@ -119,33 +108,38 @@ public class RegisterActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        addConnectionListener();
+        getInstances();
         userAuth.addAuthStateListener(userAuthListener);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
+        removeListenerforUsername();
         userAuth.removeAuthStateListener(userAuthListener);
+        removeConnectionListener();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        addConnectionListener();
+        getInstances();
         userAuth.addAuthStateListener(userAuthListener);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
+        removeListenerforUsername();
         userAuth.removeAuthStateListener(userAuthListener);
+        removeConnectionListener();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        removeListenerforUsername();
-        userAuth.removeAuthStateListener(userAuthListener);
-        removeConnectionListener();
     }
 
     private void addValuesInDatabase(FirebaseUser fUser) {
@@ -275,7 +269,7 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void getInstances() {
-        if (isConnected) {
+        if (userAuth == null && dbUsersRef == null) {
             DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
             dbUsersRef = dbRootRef.child("users");
             userAuth = FirebaseAuth.getInstance();
@@ -292,9 +286,7 @@ public class RegisterActivity extends AppCompatActivity {
         return new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                if (dataSnapshot.getValue(Boolean.class))
-                    isConnected = true;
-                else isConnected = false;
+                isConnected = dataSnapshot.getValue(Boolean.class);
             }
 
             @Override

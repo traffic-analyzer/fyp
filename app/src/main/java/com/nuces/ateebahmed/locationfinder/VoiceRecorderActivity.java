@@ -1,5 +1,7 @@
 package com.nuces.ateebahmed.locationfinder;
 
+import android.*;
+import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -156,7 +158,8 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         switch (requestCode) {
             case REQUEST_CODE_AUDIO:
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+                if (grantResults.length > 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                        && grantResults[1] == PackageManager.PERMISSION_GRANTED)
                 {
                     Log.i(TAG, "permission granted");
                     startRecording();
@@ -164,6 +167,7 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
                     Log.e(TAG, "permission denied");
                     Toast.makeText(this, "Allow audio permission to record and send audio messages",
                             Toast.LENGTH_SHORT).show();
+                    finish();
                 }
         }
     }
@@ -347,13 +351,17 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
 
     private boolean isRecordingAllowed() {
         return (ContextCompat.checkSelfPermission(getApplicationContext(),
-                android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
+                android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) &&
+                (ContextCompat.checkSelfPermission(getApplicationContext(),
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+                        PackageManager.PERMISSION_GRANTED);
     }
 
     private void getRecordingPermission() {
         if (!isRecordingAllowed())
             ActivityCompat.requestPermissions(this, new String[]
-                    {android.Manifest.permission.RECORD_AUDIO}, REQUEST_CODE_AUDIO);
+                    {android.Manifest.permission.RECORD_AUDIO,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_AUDIO);
         else startRecording();
     }
 }

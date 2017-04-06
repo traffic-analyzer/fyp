@@ -203,10 +203,23 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
 
-        // Move the camera to Karachi, PK
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(24.8615, 67.0099), 10));
-        mMap.setOnMarkerClickListener(this);
+        if(mMap != null) {
+            // Move the camera to Karachi, PK
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(24.8615, 67.0099), 10));
+            mMap.setOnMarkerClickListener(this);
 
+            mMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
+                @Override
+                public View getInfoWindow(Marker marker) {
+                    return null;
+                }
+
+                @Override
+                public View getInfoContents(Marker marker) {
+                    return null;
+                }
+            });
+        }
         // Add a marker in Sydney and move the camera
         /*LatLng sydney = new LatLng(0, 0);
         mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
@@ -216,9 +229,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onStart() {
         super.onStart();
-        addConnectionListener();
-        addAuthStateListener();
-        startBackgroundService();
     }
 
     @Override
@@ -232,6 +242,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 new IntentFilter(BackgroundLocationService.ACTION));
         if (!isLocationProviderEnabled())
             openLocationDialogue();
+        startBackgroundService();
     }
 
     @Override

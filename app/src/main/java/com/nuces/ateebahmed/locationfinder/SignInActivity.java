@@ -68,7 +68,6 @@ public class SignInActivity extends AppCompatActivity {
             public void onClick(View widget) {
                 Intent register = new Intent(SignInActivity.this, RegisterActivity.class);
                 startActivity(register);
-                finish();
             }
         };
         span.setSpan(clickableSpan, 0, span.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
@@ -225,9 +224,7 @@ public class SignInActivity extends AppCompatActivity {
         return new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                if (dataSnapshot.getValue(Boolean.class))
-                    isConnected = true;
-                else isConnected = false;
+                isConnected = dataSnapshot.getValue(Boolean.class);
             }
 
             @Override

@@ -2,37 +2,26 @@ package com.nuces.ateebahmed.locationfinder;
 
 import android.Manifest;
 import android.app.AlertDialog;
-import android.content.BroadcastReceiver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.graphics.BitmapFactory;
-import android.graphics.Matrix;
 import android.graphics.PixelFormat;
 import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.location.Location;
 import android.media.AudioManager;
 import android.media.ExifInterface;
 import android.media.MediaRecorder;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.AppCompatButton;
 import android.support.v7.widget.AppCompatImageButton;
-import android.support.v7.widget.AppCompatImageView;
 import android.support.v7.widget.SwitchCompat;
 import android.util.Log;
 import android.view.ContextThemeWrapper;
@@ -40,28 +29,14 @@ import android.view.Surface;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.Toast;
 
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
-
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-
-import models.Message;
 
 public class CameraActivity extends AppCompatActivity implements SensorEventListener {
 
@@ -93,8 +68,6 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
 
         camMode = false;
 
-        // camera surface view created
-        cameraView = (FrameLayout) findViewById(R.id.surfaceView);
         flashCameraButton = (AppCompatImageButton) findViewById(R.id.flash);
         captureImage = (AppCompatImageButton) findViewById(R.id.captureImage);
         captureImage.setOnClickListener(new View.OnClickListener() {
@@ -141,6 +114,8 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
         if (!areCameraPermissionsAllowed())
             requestForCamera();
         else {
+            // camera surface view created
+            cameraView = (FrameLayout) findViewById(R.id.surfaceView);
             createCamera();
             sensorManager.registerListener(this, sensorManager
                     .getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_UI);
@@ -152,7 +127,8 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
         super.onPause();
         sensorManager.unregisterListener(this);
         camera = null;
-        videoRecorder.release();
+        if(videoRecorder != null)
+            videoRecorder.release();
     }
 
     private void setUpCamera(Camera c) {
@@ -390,6 +366,7 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
                 Toast.makeText(this, "Allow permission to take and save pictures",
                         Toast.LENGTH_SHORT).show();
                 Log.e(TAG, "permission denied");
+                finish();
             }
         }
     }
