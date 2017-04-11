@@ -16,12 +16,15 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.design.widget.BottomSheetDialogFragment;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.AppCompatImageView;
+import android.support.v7.widget.AppCompatTextView;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -50,6 +53,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
@@ -61,11 +65,15 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Iterator;
 
 import models.User;
 
@@ -110,6 +118,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private long geofenceExpiration = 60 * 60 * 1000, geofenceRadius = 100;
     protected static final int CHECK_SETTINGS = 0x1, ENABLE_LOCATION = 0x2;
     private static final String GEOFENCE_REQUEST_KEY = "own";
+    private String mediaUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -207,18 +216,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             // Move the camera to Karachi, PK
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(24.8615, 67.0099), 10));
             mMap.setOnMarkerClickListener(this);
-
-            mMap.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
-                @Override
-                public View getInfoWindow(Marker marker) {
-                    return null;
-                }
-
-                @Override
-                public View getInfoContents(Marker marker) {
-                    return null;
-                }
-            });
         }
         // Add a marker in Sydney and move the camera
         /*LatLng sydney = new LatLng(0, 0);
@@ -631,9 +628,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         return new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                if (dataSnapshot.getValue(Boolean.class))
-                    isConnected = true;
-                else isConnected = false;
+                isConnected = dataSnapshot.getValue(Boolean.class);
                 Log.i(TAG, "connection status: " + isConnected);
             }
 
@@ -757,12 +752,31 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .position(new LatLng((Double) dataSnapshot.child("latitude").getValue(),
                         (Double) dataSnapshot.child("longitude").getValue()))
                 .title(new SimpleDateFormat("d MMM yyyy HH:mm a").format(date))
-                .icon(setMarkerIcon(dataSnapshot))));
+                .icon(setMarkerIcon(dataSnapshot))
+                .snippet(String.valueOf(dataSnapshot.getKey()))));
     }
 
     @Override
     public boolean onMarkerClick(Marker marker) {
-        return false;
+        mMap.animateCamera(CameraUpdateFactory.newLatLng(marker.getPosition()));
+        dbMessagesRef.child(marker.getSnippet())
+            .addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot dataSnapshot) {
+                    if (dataSnapshot.hasChild("audio") || dataSnapshot.hasChild("image") ||
+                            dataSnapshot.hasChild("video"))
+                        getMediaUri(dataSnapshot);
+                    else mediaUri = "";
+                    showBottomSheet(dataSnapshot.hasChild("message")
+                            ? dataSnapshot.child("message").getValue(String.class) : "");
+                }
+
+                @Override
+                public void onCancelled(DatabaseError databaseError) {
+
+                }
+            });
+        return true;
     }
 
     private BitmapDescriptor setMarkerIcon(DataSnapshot dataSnapshot) {
@@ -773,5 +787,23 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         else if (dataSnapshot.hasChild("video"))
             return BitmapDescriptorFactory.fromResource(R.drawable.ic_video);
         else return BitmapDescriptorFactory.fromResource(R.drawable.ic_message);
+    }
+
+    private void getMediaUri(DataSnapshot snapshot) {
+        if (snapshot.hasChild("image"))
+            mediaUri = snapshot.child("image").getValue(String.class);
+        else if (snapshot.hasChild("video"))
+            mediaUri = snapshot.child("video").getValue(String.class);
+        else if (snapshot.hasChild("audio"))
+            mediaUri = snapshot.child("audio").getValue(String.class);
+    }
+
+    private void showBottomSheet(String message) {
+        MarkerDetailsBottomSheet markerDetails;
+        if (!mediaUri.isEmpty())
+            markerDetails = MarkerDetailsBottomSheet
+                .newInstance(mediaUri);
+        else markerDetails = MarkerDetailsBottomSheet.newInstance(message);
+        markerDetails.show(getSupportFragmentManager(), markerDetails.getTag());
     }
 }

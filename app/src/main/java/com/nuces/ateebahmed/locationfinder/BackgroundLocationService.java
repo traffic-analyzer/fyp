@@ -132,15 +132,22 @@ public class BackgroundLocationService extends Service implements LocationListen
     @Override
     public void onDestroy() {
         super.onDestroy();
-        Log.i(TAG, "service destroyed");
-        localBroadcastManager.unregisterReceiver(locationPermissionReceiver);
-        removeAuthStateListener();
-        removeConnectionListener();
-        stopLocationUpdate();
-        destroyGClient();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
-            locationHandlerThread.quitSafely();
-        } else locationHandlerThread.quit();
+        locationHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                Log.i(TAG, "service destroyed");
+                dbUserRef.child("latitude").setValue(91);
+                dbUserRef.child("longitude").setValue(181);
+                localBroadcastManager.unregisterReceiver(locationPermissionReceiver);
+                removeAuthStateListener();
+                removeConnectionListener();
+                stopLocationUpdate();
+                destroyGClient();
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+                    locationHandlerThread.quitSafely();
+                } else locationHandlerThread.quit();
+            }
+        });
     }
 
     @Override
@@ -258,9 +265,7 @@ public class BackgroundLocationService extends Service implements LocationListen
         return new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
-                if (dataSnapshot.getValue(Boolean.class))
-                    isConnected = true;
-                else isConnected = false;
+                isConnected = dataSnapshot.getValue(Boolean.class);
             }
 
             @Override
