@@ -20,4 +20,16 @@
         android:layout_height="wrap_content"
         android:visibility="gone"/>
 
+    <FrameLayout
+        android:id="@+id/videoFrame"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/activity_horizontal_margin">
+        <VideoView
+            android:id="@+id/videoSurface"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"/>
+    </FrameLayout>
+
 </android.support.v7.widget.LinearLayoutCompat>
