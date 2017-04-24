@@ -7,6 +7,9 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.places.Places;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 
 /**
  * Created by progamer on 28/1/17.
@@ -21,6 +24,12 @@ public class LocationComponentsSingleton {
     private GoogleApiClient googleApiClient;
     private LocationRequest locationRequest;
     private LocationSettingsRequest locationSettingsRequest;
+    private static final LatLng SOUTH_WEST = new LatLng(24.747001, 66.640322),
+                                NORTH_EAST = new LatLng(25.249834, 67.456057);
+    private static final LatLngBounds BOUNDS = LatLngBounds.builder().include(SOUTH_WEST)
+                                                                    .include(NORTH_EAST).build();
+    /*new LatLngBounds(new LatLng(24.747001, 66.640322),
+            new LatLng(25.249834, 67.456057));*/
 
     private LocationComponentsSingleton(Context c) {
         context = c;
@@ -38,7 +47,8 @@ public class LocationComponentsSingleton {
     }
 
     protected synchronized void buildGoogleClient() {
-        googleApiClient = new GoogleApiClient.Builder(context).addApi(LocationServices.API).build();
+        googleApiClient = new GoogleApiClient.Builder(context).addApi(LocationServices.API)
+                .addApi(Places.GEO_DATA_API).addApi(Places.PLACE_DETECTION_API).build();
     }
 
     protected synchronized void buildLocationRequest() {

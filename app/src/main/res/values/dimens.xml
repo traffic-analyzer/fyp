@@ -20,4 +20,5 @@
     <dimen name="material_design_list_height">48dp</dimen>
     <dimen name="material_design_list_vertical_padding">8dp</dimen>
     <dimen name="camera_button_margin">36dp</dimen>
+    <dimen name="fab_margin">16dp</dimen>
 </resources>

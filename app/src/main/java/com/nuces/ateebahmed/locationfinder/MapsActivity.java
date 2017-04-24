@@ -16,15 +16,13 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.design.widget.BottomSheetDialogFragment;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.AppCompatImageView;
-import android.support.v7.widget.AppCompatTextView;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -53,27 +51,32 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.Circle;
 import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
+import com.google.maps.DirectionsApi;
+import com.google.maps.GeoApiContext;
+import com.google.maps.RoadsApi;
+import com.google.maps.android.PolyUtil;
+import com.google.maps.errors.ApiException;
+import com.google.maps.model.DirectionsResult;
+import com.google.maps.model.SnappedPoint;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.Iterator;
+import java.util.List;
 
 import models.User;
 
@@ -119,6 +122,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     protected static final int CHECK_SETTINGS = 0x1, ENABLE_LOCATION = 0x2;
     private static final String GEOFENCE_REQUEST_KEY = "own";
     private String mediaUri;
+    private GeoApiContext context;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -197,6 +201,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         locUpd = false;
         marker = null;
         circle = null;
+        context = new GeoApiContext().setApiKey("AIzaSyBfqbjPyZZacjq5XuJVUw_3RgXbehyJK0c");
     }
 
     /**
@@ -216,6 +221,40 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             // Move the camera to Karachi, PK
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(24.8615, 67.0099), 10));
             mMap.setOnMarkerClickListener(this);
+
+            try {
+                DirectionsResult result = DirectionsApi.getDirections(context, "Gulshan-e-Iqbal, Karachi, Pakistan", "Malir, Karachi, Pakistan").await();
+                PolylineOptions options = new PolylineOptions();
+                options.color(Color.BLACK);
+                options.width(10);
+                List<com.google.maps.model.LatLng> list = result.routes[0].overviewPolyline.decodePath(),
+                        splitList = new ArrayList<>();
+                ArrayList<LatLng> smoothCoords = new ArrayList<>();
+                ArrayList<SnappedPoint[]> snapped = new ArrayList<>();
+                com.google.maps.PendingResult<SnappedPoint[]> pointResult;
+                com.google.maps.model.LatLng pointsArray[];
+                for (int i = 0; i < list.size(); i += 100) {
+                    pointsArray = new com.google.maps.model.LatLng[(Math.min(i + 100, list.size() - 1) % 101)];
+                    for(int j = 0; j < pointsArray.length; ++j)
+                        pointsArray[j] = list.get(i + j);
+                    pointResult = RoadsApi.snapToRoads(context, true, pointsArray);
+                    snapped.add(pointResult.await());
+                }
+                for (int i = 0; i < snapped.size(); ++i)
+                    for (int j = 0; j < snapped.get(i).length; ++j) {
+                        String points[] = snapped.get(i)[j].location.toString().split(",");
+                        double latlng[] = new double[2];
+                        latlng[0] = Double.parseDouble(points[0]);
+                        latlng[1] = Double.parseDouble(points[1]);
+                        smoothCoords.add(new LatLng(latlng[0], latlng[1]));
+                    }
+                for (LatLng l : smoothCoords) {
+                    options.add(l);
+                }
+                mMap.addPolyline(options);
+            } catch (ApiException | InterruptedException | IOException e) {
+                e.printStackTrace();
+            }
         }
         // Add a marker in Sydney and move the camera
         /*LatLng sydney = new LatLng(0, 0);
@@ -239,7 +278,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 new IntentFilter(BackgroundLocationService.ACTION));
         if (!isLocationProviderEnabled())
             openLocationDialogue();
-        startBackgroundService();
+//        startBackgroundService();
     }
 
     @Override

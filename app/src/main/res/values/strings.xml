@@ -42,4 +42,5 @@
     <string name="tglRecord">Switch to record audio</string>
     <string name="txtRequired">All fields are required!</string>
     <string name="strSituation">Situation</string>
+    <string name="title_activity_search_places">SearchPlacesActivity</string>
 </resources>
