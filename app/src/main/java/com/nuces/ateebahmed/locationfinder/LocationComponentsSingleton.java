@@ -26,7 +26,7 @@ public class LocationComponentsSingleton {
     private LocationSettingsRequest locationSettingsRequest;
     private static final LatLng SOUTH_WEST = new LatLng(24.747001, 66.640322),
                                 NORTH_EAST = new LatLng(25.249834, 67.456057);
-    private static final LatLngBounds BOUNDS = LatLngBounds.builder().include(SOUTH_WEST)
+    protected static final LatLngBounds BOUNDS = LatLngBounds.builder().include(SOUTH_WEST)
                                                                     .include(NORTH_EAST).build();
     /*new LatLngBounds(new LatLng(24.747001, 66.640322),
             new LatLng(25.249834, 67.456057));*/
