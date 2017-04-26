@@ -39,10 +39,8 @@ public class LocationComponentsSingleton {
     }
 
     public synchronized static LocationComponentsSingleton getInstance(Context c) {
-        if (instance == null) {
-            Log.i(TAG, "instance is null");
-                instance = new LocationComponentsSingleton(c.getApplicationContext());
-        } else Log.i(TAG, "old instance");
+        if (instance == null)
+            instance = new LocationComponentsSingleton(c.getApplicationContext());
         return instance;
     }
 

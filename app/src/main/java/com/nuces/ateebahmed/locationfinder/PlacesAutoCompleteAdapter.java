@@ -6,6 +6,7 @@ import android.support.annotation.LayoutRes;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.style.StyleSpan;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -14,10 +15,13 @@ import android.widget.Filterable;
 import android.widget.TextView;
 
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.common.data.DataBufferUtils;
 import com.google.android.gms.location.places.AutocompleteFilter;
 import com.google.android.gms.location.places.AutocompletePrediction;
 import com.google.android.gms.location.places.AutocompletePredictionBuffer;
+import com.google.android.gms.location.places.Place;
+import com.google.android.gms.location.places.PlaceBuffer;
 import com.google.android.gms.location.places.Places;
 
 import java.util.ArrayList;
@@ -51,20 +55,6 @@ public class PlacesAutoCompleteAdapter extends ArrayAdapter implements Filterabl
                     // use this data in getPlaceById to get coordinates
                     data = getLocations(charSequence);
                 }
-                // for getting LatLng
-                    /*Places.GeoDataApi.getPlaceById(mGoogleApiClient, placeId)
-                            .setResultCallback(new ResultCallback<PlaceBuffer>() {
-                                @Override
-                                public void onResult(PlaceBuffer places) {
-                                    if (places.getStatus().isSuccess() && places.getCount() > 0) {
-                                        final Place myPlace = places.get(0);
-                                        Log.i(TAG, "Place found: " + myPlace.getName());
-                                    } else {
-                                        Log.e(TAG, "Place not found");
-                                    }
-                                    places.release();
-                                }
-                            });*/
                 results.values = data;
                 if (data != null)
                     results.count = data.size();
@@ -115,7 +105,7 @@ public class PlacesAutoCompleteAdapter extends ArrayAdapter implements Filterabl
         if (!googleApiClient.isConnected())
             return null;
         AutocompletePredictionBuffer results = Places.GeoDataApi
-                .getAutocompletePredictions(googleApiClient, "Karachi" + query.toString(),
+                .getAutocompletePredictions(googleApiClient, query.toString(),
                         LocationComponentsSingleton.BOUNDS, getCityFilter())
                 .await(60, TimeUnit.SECONDS);
         if (!results.getStatus().isSuccess()) {

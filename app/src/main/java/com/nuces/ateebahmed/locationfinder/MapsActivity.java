@@ -23,6 +23,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.AppCompatAutoCompleteTextView;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
@@ -32,6 +33,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.widget.AdapterView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -45,6 +47,10 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResult;
 import com.google.android.gms.location.LocationSettingsStatusCodes;
+import com.google.android.gms.location.places.AutocompletePrediction;
+import com.google.android.gms.location.places.Place;
+import com.google.android.gms.location.places.PlaceBuffer;
+import com.google.android.gms.location.places.Places;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -56,6 +62,7 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.ChildEventListener;
@@ -71,12 +78,16 @@ import com.google.maps.android.PolyUtil;
 import com.google.maps.errors.ApiException;
 import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.SnappedPoint;
+import com.google.maps.model.Unit;
+
+import org.joda.time.Instant;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import models.User;
 
@@ -89,6 +100,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private BroadcastReceiver locationBroadcastReceiver;
     private LocalBroadcastManager localBroadcastManager;
 
+    private PlacesAutoCompleteAdapter adapter;
     private LocationComponentsSingleton instance;
     protected GoogleApiClient gClient;
     protected LocationSettingsRequest locSettingReq;
@@ -110,9 +122,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private FirebaseAuth userAuth;
     private FirebaseAuth.AuthStateListener userVerified;
 
-    private Toolbar searchBar;
-    private FloatingActionButton btnGotoMarker, btnAddContent, btnCamera, btnChat, btnVoiceRecord;
+//    private Toolbar searchBar;
+    private FloatingActionButton btnGotoMarker, btnAddContent, btnCamera, btnChat, btnVoiceRecord,
+        btnGo;
     private Animation animBtnOpen, animBtnClose, animRotateForward, animRotateBackward;
+    private AppCompatAutoCompleteTextView tvSearchSrc, tvSearchDest;
 
     // Constants
     private String packageName = "com.nuces.ateebahmed.locationfinder",
@@ -121,16 +135,18 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private long geofenceExpiration = 60 * 60 * 1000, geofenceRadius = 100;
     protected static final int CHECK_SETTINGS = 0x1, ENABLE_LOCATION = 0x2;
     private static final String GEOFENCE_REQUEST_KEY = "own";
-    private String mediaUri;
+    private String mediaUri, srcPlaceId, destPlaceId;
     private GeoApiContext context;
+    private LatLng srcLatLng, destLatLng;
+    private Polyline route;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-        searchBar = (Toolbar) findViewById(R.id.searchBar);
-        setSupportActionBar(searchBar);
+        /*searchBar = (Toolbar) findViewById(R.id.searchBar);
+        setSupportActionBar(searchBar);*/
         btnGotoMarker = (FloatingActionButton) findViewById(R.id.btnGotoMarker);
         btnGotoMarker.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -172,6 +188,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 startActivity(voice);
             }
         });
+        btnGo = (FloatingActionButton) findViewById(R.id.btnGo);
+        btnGo.setOnClickListener(getDirections());
+
+        tvSearchSrc = (AppCompatAutoCompleteTextView) findViewById(R.id.tvSearchSrc);
+        tvSearchDest = (AppCompatAutoCompleteTextView) findViewById(R.id.tvSearchDest);
 
         animBtnOpen = AnimationUtils.loadAnimation(getApplicationContext(), R.anim.button_open);
         animBtnClose = AnimationUtils.loadAnimation(getApplicationContext(), R.anim.button_close);
@@ -202,6 +223,14 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         marker = null;
         circle = null;
         context = new GeoApiContext().setApiKey("AIzaSyBfqbjPyZZacjq5XuJVUw_3RgXbehyJK0c");
+        adapter = new PlacesAutoCompleteAdapter(this, gClient);
+        tvSearchSrc.setAdapter(adapter);
+        tvSearchSrc.setOnItemSelectedListener(getSelectedPlace(tvSearchSrc.getId()));
+        tvSearchSrc.setOnItemClickListener(getClickedPlace(tvSearchSrc.getId()));
+        tvSearchDest.setAdapter(adapter);
+        tvSearchDest.setOnItemSelectedListener(getSelectedPlace(tvSearchDest.getId()));
+        tvSearchDest.setOnItemClickListener(getClickedPlace(tvSearchDest.getId()));
+        route = null;
     }
 
     /**
@@ -222,13 +251,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(24.8615, 67.0099), 10));
             mMap.setOnMarkerClickListener(this);
 
-            try {
+            /*try {
                 DirectionsResult result = DirectionsApi.getDirections(context, "Gulshan-e-Iqbal, Karachi, Pakistan", "Malir, Karachi, Pakistan").await();
                 PolylineOptions options = new PolylineOptions();
                 options.color(Color.BLACK);
                 options.width(10);
-                List<com.google.maps.model.LatLng> list = result.routes[0].overviewPolyline.decodePath(),
-                        splitList = new ArrayList<>();
+                List<com.google.maps.model.LatLng> list = result.routes[0].overviewPolyline.decodePath();
                 ArrayList<LatLng> smoothCoords = new ArrayList<>();
                 ArrayList<SnappedPoint[]> snapped = new ArrayList<>();
                 com.google.maps.PendingResult<SnappedPoint[]> pointResult;
@@ -254,7 +282,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 mMap.addPolyline(options);
             } catch (ApiException | InterruptedException | IOException e) {
                 e.printStackTrace();
-            }
+            }*/
         }
         // Add a marker in Sydney and move the camera
         /*LatLng sydney = new LatLng(0, 0);
@@ -644,6 +672,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         if (instance == null) {
             instance = LocationComponentsSingleton.getInstance(this);
             gClient = instance.getGoogleApiClient();
+            // only for when background service is disabled
+            gClient.connect();
             locSettingReq = instance.getLocationSettingsRequest();
         }
         instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -790,7 +820,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         messageMarkers.add(mMap.addMarker(new MarkerOptions()
                 .position(new LatLng((Double) dataSnapshot.child("latitude").getValue(),
                         (Double) dataSnapshot.child("longitude").getValue()))
-                .title(new SimpleDateFormat("d MMM yyyy HH:mm a").format(date))
+                .title(new SimpleDateFormat("d MMM yyyy HH:mm a", Locale.getDefault()).format(date))
                 .icon(setMarkerIcon(dataSnapshot))
                 .snippet(String.valueOf(dataSnapshot.getKey()))));
     }
@@ -844,5 +874,130 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 .newInstance(mediaUri);
         else markerDetails = MarkerDetailsBottomSheet.newInstance(message);
         markerDetails.show(getSupportFragmentManager(), markerDetails.getTag());
+    }
+
+    private AdapterView.OnItemSelectedListener getSelectedPlace(final int id) {
+        return new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> adapterView, View view, int i, long l) {
+                setPlaceIds(adapterView, id, i);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> adapterView) {
+                setPlaceIds(adapterView, id, 0);
+            }
+        };
+    }
+
+    private AdapterView.OnItemClickListener getClickedPlace(final int id) {
+        return new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                setPlaceIds(adapterView, id, i);
+            }
+        };
+    }
+
+    private void setPlaceIds(AdapterView<?> adapterView, int id, int i) {
+        switch (id) {
+            case R.id.tvSearchSrc:
+                srcPlaceId = ((AutocompletePrediction)adapterView.getItemAtPosition(i)).getPlaceId();
+                break;
+            case R.id.tvSearchDest:
+                destPlaceId = ((AutocompletePrediction)adapterView.getItemAtPosition(i)).getPlaceId();
+                break;
+            default:
+                break;
+        }
+    }
+
+    private View.OnClickListener getDirections() {
+        return new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (srcPlaceId == null || destPlaceId == null)
+                    return;
+                // for getting LatLng
+                Places.GeoDataApi.getPlaceById(gClient, srcPlaceId)
+                        .setResultCallback(new ResultCallback<PlaceBuffer>() {
+                            @Override
+                            public void onResult(PlaceBuffer places) {
+                                if (places.getStatus().isSuccess() && places.getCount() > 0) {
+                                    final Place myPlace = places.get(0);
+                                    srcLatLng = myPlace.getLatLng();
+                                    getDirectionsResult();
+                                } else {
+                                    Log.e(TAG, "Place not found");
+                                }
+                                places.release();
+                            }
+                        });
+                Places.GeoDataApi.getPlaceById(gClient, destPlaceId)
+                        .setResultCallback(new ResultCallback<PlaceBuffer>() {
+                            @Override
+                            public void onResult(PlaceBuffer places) {
+                                if (places.getStatus().isSuccess() && places.getCount() > 0) {
+                                    final Place myPlace = places.get(0);
+                                    destLatLng = myPlace.getLatLng();
+                                    getDirectionsResult();
+                                } else {
+                                    Log.e(TAG, "Place not found");
+                                }
+                                places.release();
+                            }
+                        });
+            }
+        };
+    }
+
+    private com.google.maps.model.LatLng getLatLngForDirections(LatLng ll) {
+        return new com.google.maps.model.LatLng(ll.latitude, ll.longitude);
+    }
+
+    private void getDirectionsResult() {
+        if (srcLatLng != null && destLatLng != null) {
+            try {
+                DirectionsResult result = DirectionsApi.newRequest(context)
+                        .origin(getLatLngForDirections(srcLatLng))
+                        .destination(getLatLngForDirections(destLatLng))
+                        .departureTime(Instant.now()).optimizeWaypoints(true).units(Unit.METRIC)
+                        .await();
+
+                List<com.google.maps.model.LatLng> list = result.routes[0].overviewPolyline
+                        .decodePath();
+                ArrayList<LatLng> smoothCoords = new ArrayList<>();
+                ArrayList<SnappedPoint[]> snapped = new ArrayList<>();
+                com.google.maps.PendingResult<SnappedPoint[]> pointResult;
+                com.google.maps.model.LatLng pointsArray[];
+                for (int i = 0; i < list.size(); i += 100) {
+                    pointsArray = new com.google.maps.model
+                            .LatLng[(Math.min(i + 100, list.size() - 1) % 101)];
+                    for (int j = 0; j < pointsArray.length; ++j)
+                        pointsArray[j] = list.get(i + j);
+                    pointResult = RoadsApi.snapToRoads(context, true, pointsArray);
+                    snapped.add(pointResult.await());
+                }
+                for (int i = 0; i < snapped.size(); ++i)
+                    for (int j = 0; j < snapped.get(i).length; ++j) {
+                        String points[] = snapped.get(i)[j].location.toString().split(",");
+                        double latlng[] = new double[2];
+                        latlng[0] = Double.parseDouble(points[0]);
+                        latlng[1] = Double.parseDouble(points[1]);
+                        smoothCoords.add(new LatLng(latlng[0], latlng[1]));
+                    }
+                PolylineOptions options = new PolylineOptions();
+                options.color(Color.BLACK);
+                options.width(10);
+                for (LatLng l : smoothCoords) {
+                    options.add(l);
+                }
+                if (route != null)
+                    route.remove();
+                route = mMap.addPolyline(options);
+            } catch (ApiException | InterruptedException | IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
