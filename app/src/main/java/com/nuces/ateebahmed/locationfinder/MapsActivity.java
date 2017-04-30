@@ -199,7 +199,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         btnCancel.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                bottomSheetRequestBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+                bottomSheetDirectionsBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
             }
         });
         btnAskDirections = (FloatingActionButton) findViewById(R.id.btnAskDirections);
@@ -215,7 +215,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         btnRequestNo.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                bottomSheetDirectionsBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+                bottomSheetRequestBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
             }
         });
 
@@ -924,7 +924,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onClick(View view) {
                 hideKeyboard();
-                bottomSheetDirectionsBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
                 if (srcPlaceId == null || destPlaceId == null)
                     return;
                 if (!isConnected) {
@@ -957,6 +956,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                 places.release();
                             }
                         });
+                bottomSheetDirectionsBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
             }
         };
     }
@@ -967,7 +967,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     private void getDirectionsResult() {
 
-        if (srcLatLng != null && destLatLng != null && isConnected) {
+        if (srcLatLng != null && !srcLatLng.toString().trim().isEmpty() && destLatLng != null &&
+                !destLatLng.toString().trim().isEmpty() && isConnected) {
             try {
 
                 DirectionsResult result = DirectionsApi.newRequest(context)

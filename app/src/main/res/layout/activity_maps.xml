@@ -185,8 +185,7 @@
         android:layout_height="wrap_content"
         android:clipToPadding="true"
         app:layout_behavior="android.support.design.widget.BottomSheetBehavior"
-        android:background="@android:color/white"
-        android:visibility="gone">
+        android:background="@android:color/white">
 
         <android.support.v7.widget.LinearLayoutCompat
             android:layout_width="match_parent"

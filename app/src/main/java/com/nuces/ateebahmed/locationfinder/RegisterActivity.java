@@ -55,9 +55,6 @@ public class RegisterActivity extends AppCompatActivity {
                     addValuesInDatabase(firebaseAuth.getCurrentUser());
                     saveNewUserSession(firebaseAuth.getCurrentUser());
                     finish();
-                } else {
-                    Toast.makeText(getApplicationContext(), "No Internet connection available",
-                            Toast.LENGTH_LONG).show();
                 }
             }
         };
