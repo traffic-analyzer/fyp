@@ -2,58 +2,147 @@
     android:layout_height="match_parent"
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:fitsSystemWindows="true">
 
     <!--MAIN LAYOUT-->
-    <RelativeLayout
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:fillViewport="true">
 
-        <fragment xmlns:android="http://schemas.android.com/apk/res/android"
-            xmlns:tools="http://schemas.android.com/tools"
-            android:id="@+id/map"
-            android:name="com.google.android.gms.maps.SupportMapFragment"
+        <RelativeLayout
+            android:layout_height="match_parent"
             android:layout_width="match_parent"
-            tools:context="com.nuces.ateebahmed.locationfinder.MapsActivity"
-            android:layout_height="match_parent" />
+            android:focusable="true"
+            android:focusableInTouchMode="true">
 
-        <android.support.v7.widget.Toolbar
-            android:id="@+id/searchBar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="?attr/colorPrimary"
-            android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
-            app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
-            android:visibility="gone"/>
+            <fragment xmlns:android="http://schemas.android.com/apk/res/android"
+                xmlns:tools="http://schemas.android.com/tools"
+                android:id="@+id/map"
+                android:name="com.google.android.gms.maps.SupportMapFragment"
+                android:layout_width="match_parent"
+                tools:context="com.nuces.ateebahmed.locationfinder.MapsActivity"
+                android:layout_height="match_parent" />
 
-        <android.support.v7.widget.LinearLayoutCompat
+            <android.support.v7.widget.Toolbar
+                android:id="@+id/searchBar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="?attr/colorPrimary"
+                android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
+                app:popupTheme="@style/ThemeOverlay.AppCompat.Light"
+                android:visibility="gone"/>
+
+            <android.support.design.widget.FloatingActionButton
+                android:id="@+id/btnAskDirections"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:fabSize="normal"
+                android:layout_marginLeft="@dimen/activity_horizontal_margin"
+                android:layout_marginStart="@dimen/activity_horizontal_margin"
+                android:layout_marginBottom="@dimen/activity_vertical_margin"
+                android:layout_above="@+id/btnGotoMarker"/>
+
+            <android.support.design.widget.FloatingActionButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/btnGotoMarker"
+                android:layout_alignParentBottom="true"
+                android:layout_marginLeft="@dimen/activity_horizontal_margin"
+                android:layout_marginBottom="@dimen/activity_vertical_margin"
+                android:layout_marginStart="@dimen/activity_horizontal_margin"
+                app:srcCompat="@android:drawable/ic_menu_mylocation"
+                app:fabSize="normal"/>
+
+            <android.support.design.widget.FloatingActionButton
+                android:id="@+id/btnCamera"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="@dimen/activity_horizontal_margin"
+                android:layout_marginEnd="@dimen/activity_horizontal_margin"
+                android:layout_marginBottom="@dimen/activity_vertical_margin"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentEnd="true"
+                android:layout_above="@+id/btnChat"
+                android:visibility="invisible"
+                app:pressedTranslationZ="12dp"
+                app:srcCompat="@android:drawable/ic_menu_camera"
+                app:fabSize="mini"/>
+
+            <android.support.design.widget.FloatingActionButton
+                android:id="@+id/btnChat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="@dimen/activity_horizontal_margin"
+                android:layout_marginEnd="@dimen/activity_horizontal_margin"
+                android:layout_marginBottom="@dimen/activity_vertical_margin"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentEnd="true"
+                android:layout_above="@+id/btnVoiceRecord"
+                android:visibility="invisible"
+                app:pressedTranslationZ="12dp"
+                app:srcCompat="@android:drawable/sym_action_chat"
+                app:fabSize="mini"/>
+
+            <android.support.design.widget.FloatingActionButton
+                android:id="@+id/btnVoiceRecord"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="@dimen/activity_horizontal_margin"
+                android:layout_marginEnd="@dimen/activity_horizontal_margin"
+                android:layout_above="@+id/btnAddContent"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentEnd="true"
+                android:visibility="invisible"
+                app:pressedTranslationZ="12dp"
+                app:srcCompat="@drawable/ic_mic"
+                app:fabSize="mini"/>
+
+            <android.support.design.widget.FloatingActionButton
+                android:id="@+id/btnAddContent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginRight="@dimen/activity_horizontal_margin"
+                android:layout_marginEnd="@dimen/activity_horizontal_margin"
+                android:layout_marginBottom="@dimen/activity_vertical_margin"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentEnd="true"
+                android:layout_alignParentBottom="true"
+                app:srcCompat="@android:drawable/ic_menu_add"
+                app:pressedTranslationZ="12dp"
+                app:fabSize="normal"/>
+
+        </RelativeLayout>
+
+    </ScrollView>
+
+    <android.support.v4.widget.NestedScrollView
+        android:id="@+id/bottomSheetDirections"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="true"
+        app:layout_behavior="@string/bottom_sheet_behavior"
+        android:background="@android:color/white">
+
+        <RelativeLayout
             android:id="@+id/layoutSearchRoute"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginLeft="@dimen/activity_horizontal_margin"
-            android:layout_marginRight="@dimen/activity_horizontal_margin"
-            android:layout_marginTop="@dimen/activity_vertical_margin"
-            android:background="@android:color/white"
-            android:paddingTop="@dimen/material_design_button_padding"
-            android:paddingBottom="@dimen/material_design_button_padding"
-            android:layout_alignParentTop="true">
+            android:layout_height="wrap_content">
 
             <android.support.v7.widget.LinearLayoutCompat
-                android:layout_width="0dp"
+                android:id="@+id/layoutDirections"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:layout_weight="4"
-                android:layout_marginRight="@dimen/material_design_button_margin"
-                android:layout_marginLeft="@dimen/material_design_button_margin">
+                android:padding="@dimen/material_design_align_mini_fab_with_fab">
 
                 <android.support.v7.widget.AppCompatAutoCompleteTextView
                     android:id="@+id/tvSearchSrc"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="From"
-                    android:layout_marginBottom="@dimen/material_design_button_margin"/>
+                    android:hint="From"/>
 
                 <android.support.v7.widget.AppCompatAutoCompleteTextView
                     android:id="@+id/tvSearchDest"
@@ -64,82 +153,85 @@
 
             </android.support.v7.widget.LinearLayoutCompat>
 
-            <android.support.design.widget.FloatingActionButton
+            <android.support.v7.widget.AppCompatButton
                 android:id="@+id/btnGo"
-                android:layout_width="0dp"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_weight="1"
-                app:pressedTranslationZ="12dp"/>
+                android:text="go"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_below="@+id/layoutDirections"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentEnd="true"
+                android:layout_margin="@dimen/material_design_button_margin"/>
+
+            <android.support.v7.widget.AppCompatButton
+                android:id="@+id/btnCancel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Cancel"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_toLeftOf="@+id/btnGo"
+                android:layout_toStartOf="@+id/btnGo"
+                android:layout_below="@+id/layoutDirections"
+                android:layout_marginTop="@dimen/material_design_button_margin"/>
+
+        </RelativeLayout>
+
+    </android.support.v4.widget.NestedScrollView>
+
+    <android.support.v4.widget.NestedScrollView
+        android:id="@+id/bottomSheetRequest"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipToPadding="true"
+        app:layout_behavior="android.support.design.widget.BottomSheetBehavior"
+        android:background="@android:color/white"
+        android:visibility="gone">
+
+        <android.support.v7.widget.LinearLayoutCompat
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <android.support.v7.widget.AppCompatTextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Do you want to request updates for this route?"
+                android:textSize="@dimen/material_design_text_size_title"
+                android:padding="@dimen/material_design_align_mini_fab_with_fab"/>
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="@dimen/material_design_button_margin"
+                android:paddingBottom="@dimen/material_design_button_margin">
+
+                <android.support.v7.widget.AppCompatButton
+                    android:id="@+id/btnRequestNo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cancel"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:layout_toLeftOf="@+id/btnRequestYes"
+                    android:layout_toStartOf="@+id/btnRequestYes"
+                    android:layout_marginEnd="@dimen/material_design_button_margin"
+                    android:layout_marginRight="@dimen/material_design_button_margin"/>
+
+                <android.support.v7.widget.AppCompatButton
+                    android:id="@+id/btnRequestYes"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Request"
+                    style="?android:attr/borderlessButtonStyle"
+                    android:layout_alignParentRight="true"
+                    android:layout_alignParentEnd="true"
+                    android:layout_marginRight="@dimen/material_design_button_margin"
+                    android:layout_marginEnd="@dimen/material_design_button_margin"/>
+
+            </RelativeLayout>
 
         </android.support.v7.widget.LinearLayoutCompat>
 
-        <android.support.design.widget.FloatingActionButton
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/btnGotoMarker"
-            android:layout_alignParentBottom="true"
-            android:layout_alignParentLeft="true"
-            android:layout_alignParentStart="true"
-            android:layout_marginLeft="@dimen/activity_horizontal_margin"
-            android:layout_marginBottom="@dimen/activity_vertical_margin"
-            android:layout_marginStart="@dimen/activity_horizontal_margin"
-            app:srcCompat="@android:drawable/ic_menu_mylocation"/>
-
-        <android.support.design.widget.FloatingActionButton
-            android:id="@+id/btnCamera"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginRight="@dimen/activity_horizontal_margin"
-            android:layout_marginEnd="@dimen/activity_horizontal_margin"
-            android:layout_marginBottom="@dimen/fab_first_mini_button_vertical_margin"
-            android:layout_alignParentRight="true"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            android:visibility="invisible"
-            app:pressedTranslationZ="12dp"
-            app:srcCompat="@android:drawable/ic_menu_camera"/>
-
-        <android.support.design.widget.FloatingActionButton
-            android:id="@+id/btnChat"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginRight="@dimen/activity_horizontal_margin"
-            android:layout_marginEnd="@dimen/activity_horizontal_margin"
-            android:layout_marginBottom="@dimen/fab_second_mini_button_vertical_margin"
-            android:layout_alignParentRight="true"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            android:visibility="invisible"
-            app:pressedTranslationZ="12dp"
-            app:srcCompat="@android:drawable/sym_action_chat"/>
-
-        <android.support.design.widget.FloatingActionButton
-            android:id="@+id/btnVoiceRecord"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginRight="@dimen/activity_horizontal_margin"
-            android:layout_marginEnd="@dimen/activity_horizontal_margin"
-            android:layout_marginBottom="@dimen/fab_third_mini_button_vertical_margin"
-            android:layout_alignParentRight="true"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            android:visibility="invisible"
-            app:pressedTranslationZ="12dp"
-            app:srcCompat="@drawable/ic_mic"/>
-
-        <android.support.design.widget.FloatingActionButton
-            android:id="@+id/btnAddContent"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginRight="@dimen/activity_horizontal_margin"
-            android:layout_marginEnd="@dimen/activity_horizontal_margin"
-            android:layout_marginBottom="@dimen/activity_vertical_margin"
-            android:layout_alignParentRight="true"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            app:srcCompat="@android:drawable/ic_menu_add"
-            app:pressedTranslationZ="12dp"/>
-    </RelativeLayout>
+    </android.support.v4.widget.NestedScrollView>
 
 </android.support.design.widget.CoordinatorLayout>

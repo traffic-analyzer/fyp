@@ -153,11 +153,11 @@ public class SignInActivity extends AppCompatActivity {
     private void addUsernameListener() {
         if (usernameListener == null)
             usernameListener = usernameAvailable();
-        if (isConnected)
+//        if (isConnected)
             dbUsersRef.orderByChild("username").equalTo(etUsername.getText().toString().trim())
                     .addListenerForSingleValueEvent(usernameListener);
-        else Toast.makeText(getApplicationContext(), "No Internet connection available",
-                Toast.LENGTH_LONG).show();
+        /*else Toast.makeText(getApplicationContext(), "No Internet connection available",
+                Toast.LENGTH_LONG).show();*/
     }
 
     private void removeUsernameListener() {

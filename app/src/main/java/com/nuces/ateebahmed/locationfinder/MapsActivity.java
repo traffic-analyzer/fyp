@@ -16,7 +16,7 @@ import android.location.Location;
 import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import android.support.design.widget.BottomSheetBehavior;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -24,8 +24,8 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.view.MenuItemCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatAutoCompleteTextView;
+import android.support.v7.widget.AppCompatButton;
 import android.support.v7.widget.SearchView;
-import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -33,6 +33,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.Toast;
 
@@ -64,6 +65,8 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
@@ -74,7 +77,6 @@ import com.google.firebase.database.ValueEventListener;
 import com.google.maps.DirectionsApi;
 import com.google.maps.GeoApiContext;
 import com.google.maps.RoadsApi;
-import com.google.maps.android.PolyUtil;
 import com.google.maps.errors.ApiException;
 import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.SnappedPoint;
@@ -89,6 +91,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import models.Request;
 import models.User;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback,
@@ -115,7 +118,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ArrayList<Marker> userMarkers, messageMarkers;
     protected ArrayList<Geofence> geofenceList;
 
-    private DatabaseReference dbUsersRef, conRef, dbMessagesRef;
+    private DatabaseReference dbUsersRef, conRef, dbMessagesRef, dbRequestsRef;
     private ValueEventListener connectionListener;
     private ChildEventListener usersLocationListener, messageListener;
 
@@ -124,9 +127,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 //    private Toolbar searchBar;
     private FloatingActionButton btnGotoMarker, btnAddContent, btnCamera, btnChat, btnVoiceRecord,
-        btnGo;
+                                    btnAskDirections;
     private Animation animBtnOpen, animBtnClose, animRotateForward, animRotateBackward;
     private AppCompatAutoCompleteTextView tvSearchSrc, tvSearchDest;
+    private AppCompatButton btnGo, btnCancel, btnRequestYes, btnRequestNo;
 
     // Constants
     private String packageName = "com.nuces.ateebahmed.locationfinder",
@@ -135,10 +139,11 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private long geofenceExpiration = 60 * 60 * 1000, geofenceRadius = 100;
     protected static final int CHECK_SETTINGS = 0x1, ENABLE_LOCATION = 0x2;
     private static final String GEOFENCE_REQUEST_KEY = "own";
-    private String mediaUri, srcPlaceId, destPlaceId;
+    private String mediaUri, srcPlaceId, destPlaceId, userId;
     private GeoApiContext context;
     private LatLng srcLatLng, destLatLng;
     private Polyline route;
+    private BottomSheetBehavior bottomSheetDirectionsBehavior, bottomSheetRequestBehavior;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -188,8 +193,39 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 startActivity(voice);
             }
         });
-        btnGo = (FloatingActionButton) findViewById(R.id.btnGo);
+        btnGo = (AppCompatButton) findViewById(R.id.btnGo);
         btnGo.setOnClickListener(getDirections());
+        btnCancel = (AppCompatButton) findViewById(R.id.btnCancel);
+        btnCancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                bottomSheetRequestBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+            }
+        });
+        btnAskDirections = (FloatingActionButton) findViewById(R.id.btnAskDirections);
+        btnAskDirections.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                bottomSheetDirectionsBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            }
+        });
+        btnRequestYes = (AppCompatButton) findViewById(R.id.btnRequestYes);
+        btnRequestYes.setOnClickListener(sendRouteTrafficRequest());
+        btnRequestNo = (AppCompatButton) findViewById(R.id.btnRequestNo);
+        btnRequestNo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                bottomSheetDirectionsBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+            }
+        });
+
+        bottomSheetDirectionsBehavior = BottomSheetBehavior.from(findViewById(R.id.bottomSheetDirections));
+        bottomSheetDirectionsBehavior.setHideable(true);
+        bottomSheetDirectionsBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+
+        bottomSheetRequestBehavior = BottomSheetBehavior.from(findViewById(R.id.bottomSheetRequest));
+        bottomSheetRequestBehavior.setHideable(true);
+        bottomSheetRequestBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
 
         tvSearchSrc = (AppCompatAutoCompleteTextView) findViewById(R.id.tvSearchSrc);
         tvSearchDest = (AppCompatAutoCompleteTextView) findViewById(R.id.tvSearchDest);
@@ -250,39 +286,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             // Move the camera to Karachi, PK
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(24.8615, 67.0099), 10));
             mMap.setOnMarkerClickListener(this);
-
-            /*try {
-                DirectionsResult result = DirectionsApi.getDirections(context, "Gulshan-e-Iqbal, Karachi, Pakistan", "Malir, Karachi, Pakistan").await();
-                PolylineOptions options = new PolylineOptions();
-                options.color(Color.BLACK);
-                options.width(10);
-                List<com.google.maps.model.LatLng> list = result.routes[0].overviewPolyline.decodePath();
-                ArrayList<LatLng> smoothCoords = new ArrayList<>();
-                ArrayList<SnappedPoint[]> snapped = new ArrayList<>();
-                com.google.maps.PendingResult<SnappedPoint[]> pointResult;
-                com.google.maps.model.LatLng pointsArray[];
-                for (int i = 0; i < list.size(); i += 100) {
-                    pointsArray = new com.google.maps.model.LatLng[(Math.min(i + 100, list.size() - 1) % 101)];
-                    for(int j = 0; j < pointsArray.length; ++j)
-                        pointsArray[j] = list.get(i + j);
-                    pointResult = RoadsApi.snapToRoads(context, true, pointsArray);
-                    snapped.add(pointResult.await());
-                }
-                for (int i = 0; i < snapped.size(); ++i)
-                    for (int j = 0; j < snapped.get(i).length; ++j) {
-                        String points[] = snapped.get(i)[j].location.toString().split(",");
-                        double latlng[] = new double[2];
-                        latlng[0] = Double.parseDouble(points[0]);
-                        latlng[1] = Double.parseDouble(points[1]);
-                        smoothCoords.add(new LatLng(latlng[0], latlng[1]));
-                    }
-                for (LatLng l : smoothCoords) {
-                    options.add(l);
-                }
-                mMap.addPolyline(options);
-            } catch (ApiException | InterruptedException | IOException e) {
-                e.printStackTrace();
-            }*/
         }
         // Add a marker in Sydney and move the camera
         /*LatLng sydney = new LatLng(0, 0);
@@ -698,7 +701,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 isConnected = dataSnapshot.getValue(Boolean.class);
-                Log.i(TAG, "connection status: " + isConnected);
             }
 
             @Override
@@ -741,6 +743,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         DatabaseReference dbRootRef = FirebaseDatabase.getInstance().getReference();
         dbUsersRef = dbRootRef.child("users");
         dbMessagesRef = dbRootRef.child("messages");
+        dbRequestsRef = dbRootRef.child("requests");
         userAuth = FirebaseAuth.getInstance();
         Log.i(TAG, "got instances");
     }
@@ -752,6 +755,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 Log.i(TAG, "checking user");
                 if (firebaseAuth.getCurrentUser() == null)
                     startSignInActivity();
+                else userId = firebaseAuth.getCurrentUser().getUid();
             }
         };
     }
@@ -828,23 +832,26 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     public boolean onMarkerClick(Marker marker) {
         mMap.animateCamera(CameraUpdateFactory.newLatLng(marker.getPosition()));
-        dbMessagesRef.child(marker.getSnippet())
-            .addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(DataSnapshot dataSnapshot) {
-                    if (dataSnapshot.hasChild("audio") || dataSnapshot.hasChild("image") ||
-                            dataSnapshot.hasChild("video"))
-                        getMediaUri(dataSnapshot);
-                    else mediaUri = "";
-                    showBottomSheet(dataSnapshot.hasChild("message")
-                            ? dataSnapshot.child("message").getValue(String.class) : "");
-                }
+        if (isConnected)
+            dbMessagesRef.child(marker.getSnippet())
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(DataSnapshot dataSnapshot) {
+                        if (dataSnapshot.hasChild("audio") || dataSnapshot.hasChild("image") ||
+                                dataSnapshot.hasChild("video"))
+                            getMediaUri(dataSnapshot);
+                        else mediaUri = "";
+                        showBottomSheet(dataSnapshot.hasChild("message")
+                                ? dataSnapshot.child("message").getValue(String.class) : "");
+                    }
 
-                @Override
-                public void onCancelled(DatabaseError databaseError) {
+                    @Override
+                    public void onCancelled(DatabaseError databaseError) {
 
-                }
-            });
+                    }
+                });
+        else Toast.makeText(MapsActivity.this, "No internet connection available",
+                Toast.LENGTH_SHORT).show();
         return true;
     }
 
@@ -916,8 +923,15 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         return new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+                hideKeyboard();
+                bottomSheetDirectionsBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
                 if (srcPlaceId == null || destPlaceId == null)
                     return;
+                if (!isConnected) {
+                    Toast.makeText(MapsActivity.this, "No internet connection available",
+                            Toast.LENGTH_SHORT).show();
+                    return;
+                }
                 // for getting LatLng
                 Places.GeoDataApi.getPlaceById(gClient, srcPlaceId)
                         .setResultCallback(new ResultCallback<PlaceBuffer>() {
@@ -927,8 +941,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                     final Place myPlace = places.get(0);
                                     srcLatLng = myPlace.getLatLng();
                                     getDirectionsResult();
-                                } else {
-                                    Log.e(TAG, "Place not found");
                                 }
                                 places.release();
                             }
@@ -941,8 +953,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                     final Place myPlace = places.get(0);
                                     destLatLng = myPlace.getLatLng();
                                     getDirectionsResult();
-                                } else {
-                                    Log.e(TAG, "Place not found");
                                 }
                                 places.release();
                             }
@@ -956,48 +966,114 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     }
 
     private void getDirectionsResult() {
-        if (srcLatLng != null && destLatLng != null) {
+
+        if (srcLatLng != null && destLatLng != null && isConnected) {
             try {
+
                 DirectionsResult result = DirectionsApi.newRequest(context)
                         .origin(getLatLngForDirections(srcLatLng))
                         .destination(getLatLngForDirections(destLatLng))
                         .departureTime(Instant.now()).optimizeWaypoints(true).units(Unit.METRIC)
                         .await();
 
-                List<com.google.maps.model.LatLng> list = result.routes[0].overviewPolyline
-                        .decodePath();
-                ArrayList<LatLng> smoothCoords = new ArrayList<>();
-                ArrayList<SnappedPoint[]> snapped = new ArrayList<>();
-                com.google.maps.PendingResult<SnappedPoint[]> pointResult;
-                com.google.maps.model.LatLng pointsArray[];
-                for (int i = 0; i < list.size(); i += 100) {
-                    pointsArray = new com.google.maps.model
-                            .LatLng[(Math.min(i + 100, list.size() - 1) % 101)];
-                    for (int j = 0; j < pointsArray.length; ++j)
-                        pointsArray[j] = list.get(i + j);
-                    pointResult = RoadsApi.snapToRoads(context, true, pointsArray);
-                    snapped.add(pointResult.await());
-                }
-                for (int i = 0; i < snapped.size(); ++i)
-                    for (int j = 0; j < snapped.get(i).length; ++j) {
-                        String points[] = snapped.get(i)[j].location.toString().split(",");
-                        double latlng[] = new double[2];
-                        latlng[0] = Double.parseDouble(points[0]);
-                        latlng[1] = Double.parseDouble(points[1]);
-                        smoothCoords.add(new LatLng(latlng[0], latlng[1]));
-                    }
+                ArrayList<SnappedPoint[]> path = getSmoothRoute(result.routes[0].overviewPolyline
+                                                                .decodePath());
+
+                ArrayList<LatLng> latLngs = convertLatLng(path);
                 PolylineOptions options = new PolylineOptions();
                 options.color(Color.BLACK);
                 options.width(10);
-                for (LatLng l : smoothCoords) {
+                for (LatLng l : latLngs) {
                     options.add(l);
                 }
+
                 if (route != null)
                     route.remove();
                 route = mMap.addPolyline(options);
+
+                bottomSheetRequestBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+            } catch (ApiException | InterruptedException | IOException e) {
+                e.printStackTrace();
+            }
+        } else if (!isConnected)
+            Toast.makeText(MapsActivity.this, "No internet connection available",
+                    Toast.LENGTH_SHORT).show();
+    }
+
+    private ArrayList<SnappedPoint[]> getSmoothRoute(List<com.google.maps.model.LatLng> route) {
+
+        ArrayList<SnappedPoint[]> snapped = new ArrayList<>();
+        com.google.maps.model.LatLng pointsArray[];
+        com.google.maps.PendingResult<SnappedPoint[]> pointResult;
+
+        for (int i = 0; i < route.size(); i += 100) {
+            pointsArray = new com.google.maps.model
+                    .LatLng[(Math.min(i + 100, route.size() - 1) % 101)];
+            for (int j = 0; j < pointsArray.length; ++j)
+                pointsArray[j] = route.get(i + j);
+
+            pointResult = RoadsApi.snapToRoads(context, true, pointsArray);
+
+            try {
+                snapped.add(pointResult.await());
             } catch (ApiException | InterruptedException | IOException e) {
                 e.printStackTrace();
             }
         }
+        return snapped;
+    }
+
+    private ArrayList<LatLng> convertLatLng(ArrayList<SnappedPoint[]> snapped) {
+
+        ArrayList<LatLng> smoothCoords = new ArrayList<>();
+        double latlng[] = new double[2];
+
+        for (int i = 0; i < snapped.size(); ++i)
+            for (int j = 0; j < snapped.get(i).length; ++j) {
+                String points[] = snapped.get(i)[j].location.toString().split(",");
+                latlng[0] = Double.parseDouble(points[0]);
+                latlng[1] = Double.parseDouble(points[1]);
+                smoothCoords.add(new LatLng(latlng[0], latlng[1]));
+            }
+
+        return smoothCoords;
+    }
+
+    private void hideKeyboard() {
+        View view = this.getCurrentFocus();
+        if (view != null) {
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context
+                                                                            .INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+        }
+    }
+
+    private View.OnClickListener sendRouteTrafficRequest() {
+        return new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (route != null && isConnected) {
+                    Request r = new Request(route.getPoints(), userId, System.currentTimeMillis());
+                    dbRequestsRef.push().setValue(r).addOnSuccessListener(new OnSuccessListener<Void>() {
+                        @Override
+                        public void onSuccess(Void aVoid) {
+                            Toast.makeText(MapsActivity.this,
+                                    "Wait a bit, results will be updated on map",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    }).addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            Toast.makeText(MapsActivity.this,
+                                    "There was an error when sending your request",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } else if (!isConnected)
+                    Toast.makeText(MapsActivity.this, "No internet connection available",
+                            Toast.LENGTH_SHORT).show();
+                bottomSheetRequestBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
+            }
+        };
     }
 }

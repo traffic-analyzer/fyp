@@ -51,7 +51,7 @@ public class RegisterActivity extends AppCompatActivity {
         userAuthListener = new FirebaseAuth.AuthStateListener() {
             @Override
             public void onAuthStateChanged(@NonNull FirebaseAuth firebaseAuth) {
-                if (isConnected && firebaseAuth.getCurrentUser() != null) {
+                if (/*isConnected && */firebaseAuth.getCurrentUser() != null) {
                     addValuesInDatabase(firebaseAuth.getCurrentUser());
                     saveNewUserSession(firebaseAuth.getCurrentUser());
                     finish();
@@ -173,11 +173,11 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void addListenerforUsername() {
-        if (isConnected)
+//        if (isConnected)
             dbUsersRef.orderByChild("username").equalTo(etUser.getText().toString().trim())
                     .addListenerForSingleValueEvent(usernameListener);
-        else Toast.makeText(getApplicationContext(), "No internet connection available",
-                Toast.LENGTH_LONG).show();
+        /*else Toast.makeText(getApplicationContext(), "No internet connection available",
+                Toast.LENGTH_LONG).show();*/
     }
 
     private void removeListenerforUsername() {
@@ -222,6 +222,7 @@ public class RegisterActivity extends AppCompatActivity {
 
             @Override
             public void afterTextChanged(Editable editable) {
+                checkFields();
             }
         });
     }
@@ -287,6 +288,7 @@ public class RegisterActivity extends AppCompatActivity {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 isConnected = dataSnapshot.getValue(Boolean.class);
+                Log.i(TAG, isConnected + " status");
             }
 
             @Override
