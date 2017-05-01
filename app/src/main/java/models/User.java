@@ -2,7 +2,7 @@ package models;
 
 public class User {
 
-    private String name, email, username /*password*/;
+    private String name, email, username, token /*password*/;
     private double latitude, longitude;
 
     public User() {
@@ -28,14 +28,17 @@ public class User {
         this.longitude = longitude;
     }
 
-    /*public User(String name, String email, String username, String password) {
+    public User(String name, String email, String username, String token, double latitude,
+                double longitude) {
         this.name = name;
         this.email = email;
         this.username = username;
-        this.password = password;
+        this.token = token;
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
-    public User(String name, String email, String username, String password, double latitude,
+    /*public User(String name, String email, String username, String password, double latitude,
                 double longitude) {
         this.name = name;
         this.email = email;
@@ -91,5 +94,13 @@ public class User {
 
     public void setLongitude(double longitude) {
         this.longitude = longitude;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 }

@@ -77,6 +77,7 @@ import com.google.firebase.database.ValueEventListener;
 import com.google.maps.DirectionsApi;
 import com.google.maps.GeoApiContext;
 import com.google.maps.RoadsApi;
+import com.google.maps.android.PolyUtil;
 import com.google.maps.errors.ApiException;
 import com.google.maps.model.DirectionsResult;
 import com.google.maps.model.SnappedPoint;
@@ -87,11 +88,13 @@ import org.joda.time.Instant;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
 import models.Request;
+import models.RequestedUsers;
 import models.User;
 
 public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback,
@@ -118,7 +121,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private ArrayList<Marker> userMarkers, messageMarkers;
     protected ArrayList<Geofence> geofenceList;
 
-    private DatabaseReference dbUsersRef, conRef, dbMessagesRef, dbRequestsRef;
+    private DatabaseReference dbUsersRef, conRef, dbMessagesRef, dbRequestsRef, dbRequestedUsersRef;
     private ValueEventListener connectionListener;
     private ChildEventListener usersLocationListener, messageListener;
 
@@ -744,6 +747,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         dbUsersRef = dbRootRef.child("users");
         dbMessagesRef = dbRootRef.child("messages");
         dbRequestsRef = dbRootRef.child("requests");
+        dbRequestedUsersRef = dbRootRef.child("requested_users");
         userAuth = FirebaseAuth.getInstance();
         Log.i(TAG, "got instances");
     }
@@ -1055,7 +1059,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             public void onClick(View view) {
                 if (route != null && isConnected) {
                     Request r = new Request(route.getPoints(), userId, System.currentTimeMillis());
-                    dbRequestsRef.push().setValue(r).addOnSuccessListener(new OnSuccessListener<Void>() {
+                    DatabaseReference requestId = dbRequestsRef.push();
+                    requestId.setValue(r).addOnSuccessListener(new OnSuccessListener<Void>() {
                         @Override
                         public void onSuccess(Void aVoid) {
                             Toast.makeText(MapsActivity.this,
@@ -1070,11 +1075,39 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                                     Toast.LENGTH_SHORT).show();
                         }
                     });
+                    setRequestedUsers(requestId.getKey());
                 } else if (!isConnected)
                     Toast.makeText(MapsActivity.this, "No internet connection available",
                             Toast.LENGTH_SHORT).show();
                 bottomSheetRequestBehavior.setState(BottomSheetBehavior.STATE_HIDDEN);
             }
         };
+    }
+
+    private void setRequestedUsers(final String requestId) {
+        dbUsersRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                List<User> users =
+                        new ArrayList<>();
+                for (DataSnapshot snapshot: dataSnapshot.getChildren())
+                    if (snapshot.hasChild("token"))
+                        users.add(snapshot.getValue(User.class));
+                LatLng ll;
+                RequestedUsers reqUsers = new RequestedUsers(requestId, new ArrayList<String>());
+                for (int i = 0; i < users.size(); ++i) {
+                    ll = new LatLng(users.get(i).getLatitude(),
+                            users.get(i).getLongitude());
+                    if(PolyUtil.isLocationOnPath(ll, route.getPoints(), true, 7))
+                        reqUsers.getUsersTokens().add(users.get(i).getToken());
+                }
+                dbRequestedUsersRef.push().setValue(reqUsers);
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
     }
 }
