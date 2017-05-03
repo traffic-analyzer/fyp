@@ -10,7 +10,8 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="com.nuces.ateebahmed.locationfinder.RegisterActivity">
+    tools:context="com.nuces.ateebahmed.locationfinder.RegisterActivity"
+    android:background="@color/colorPrimary">
 
     <android.support.design.widget.TextInputLayout
         android:layout_width="match_parent"
@@ -98,7 +99,8 @@
         android:paddingLeft="@dimen/material_design_button_padding"
         android:paddingStart="@dimen/material_design_button_padding"
         android:paddingRight="@dimen/material_design_button_padding"
-        android:paddingEnd="@dimen/material_design_button_padding" />
+        android:paddingEnd="@dimen/material_design_button_padding"
+        android:background="@color/colorSecondaryDark"/>
 
     <android.support.v7.widget.AppCompatTextView
         android:layout_width="match_parent"
@@ -106,6 +108,7 @@
         android:textSize="@dimen/material_design_text_size_sub_heading"
         android:text="@string/txtRequired"
         android:layout_marginTop="@dimen/activity_vertical_margin"
-        android:layout_marginBottom="@dimen/activity_vertical_margin"/>
+        android:layout_marginBottom="@dimen/activity_vertical_margin"
+        android:textColor="#000"/>
 
 </android.support.v7.widget.LinearLayoutCompat>

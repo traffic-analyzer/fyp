@@ -81,13 +81,13 @@
 
         <activity android:name=".VideoPlayerActivity" />
 
-        <service android:name=".MyFirebaseMessagingService">
+        <service android:name=".ReceiveRequestMessageService">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
         <service
-            android:name=".FCMToken">
+            android:name=".FCMTokenService">
             <intent-filter>
                 <action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
             </intent-filter>

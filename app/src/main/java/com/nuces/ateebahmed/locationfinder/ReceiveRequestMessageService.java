@@ -9,7 +9,7 @@ import com.google.firebase.messaging.RemoteMessage;
  * Created by progamer on 01/05/17.
  */
 
-public class MyFirebaseMessagingService extends FirebaseMessagingService {
+public class ReceiveRequestMessageService extends FirebaseMessagingService {
 
     private static final String TAG = "MyFirebaseMessagingSrvc";
     @Override

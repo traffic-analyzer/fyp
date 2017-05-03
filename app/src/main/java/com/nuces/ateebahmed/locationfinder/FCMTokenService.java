@@ -6,7 +6,7 @@ import android.util.Log;
 import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.firebase.iid.FirebaseInstanceIdService;
 
-public class FCMToken extends FirebaseInstanceIdService {
+public class FCMTokenService extends FirebaseInstanceIdService {
 
     static final String TOKEN = "token",
             SP_NAME = "com.nuces.ateebahmed.locationfinder.PREF_FILE_KEY";

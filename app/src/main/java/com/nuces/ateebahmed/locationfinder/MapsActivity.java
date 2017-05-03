@@ -75,6 +75,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.iid.FirebaseInstanceId;
+import com.google.firebase.messaging.RemoteMessage;
 import com.google.maps.DirectionsApi;
 import com.google.maps.GeoApiContext;
 import com.google.maps.RoadsApi;
@@ -271,6 +272,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         tvSearchDest.setOnItemSelectedListener(getSelectedPlace(tvSearchDest.getId()));
         tvSearchDest.setOnItemClickListener(getClickedPlace(tvSearchDest.getId()));
         route = null;
+        onNewIntent(getIntent());
     }
 
     /**
@@ -1120,8 +1122,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     private void setFCMToken() {
         if (userId == null)
             return;
-        String token = getSharedPreferences(FCMToken.SP_NAME, MODE_PRIVATE)
-                .getString(FCMToken.TOKEN, "");
+        String token = getSharedPreferences(FCMTokenService.SP_NAME, MODE_PRIVATE)
+                .getString(FCMTokenService.TOKEN, "");
         if (!token.isEmpty()) {
             dbUsersRef.child(userId).child("token").setValue(token)
                     .addOnSuccessListener(new OnSuccessListener<Void>() {
@@ -1159,5 +1161,13 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 maxDistance = distance[0];
         }
         return maxDistance;
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        if (intent.getExtras() != null) {
+            for (String key: intent.getExtras().keySet())
+                Log.i(TAG, key);
+        }
     }
 }
