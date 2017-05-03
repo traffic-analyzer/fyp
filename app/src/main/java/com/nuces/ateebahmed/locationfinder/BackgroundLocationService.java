@@ -136,8 +136,10 @@ public class BackgroundLocationService extends Service implements LocationListen
             @Override
             public void run() {
                 Log.i(TAG, "service destroyed");
-                dbUserRef.child("latitude").setValue(91);
-                dbUserRef.child("longitude").setValue(181);
+                if (dbUserRef != null) {
+                    dbUserRef.child("latitude").setValue(91);
+                    dbUserRef.child("longitude").setValue(181);
+                }
                 localBroadcastManager.unregisterReceiver(locationPermissionReceiver);
                 removeAuthStateListener();
                 removeConnectionListener();

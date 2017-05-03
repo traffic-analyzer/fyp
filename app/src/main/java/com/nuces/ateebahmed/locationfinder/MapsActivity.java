@@ -74,6 +74,7 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.firebase.iid.FirebaseInstanceId;
 import com.google.maps.DirectionsApi;
 import com.google.maps.GeoApiContext;
 import com.google.maps.RoadsApi;
@@ -312,7 +313,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 new IntentFilter(BackgroundLocationService.ACTION));
         if (!isLocationProviderEnabled())
             openLocationDialogue();
-//        startBackgroundService();
+        startBackgroundService();
     }
 
     @Override
@@ -679,7 +680,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             instance = LocationComponentsSingleton.getInstance(this);
             gClient = instance.getGoogleApiClient();
             // only for when background service is disabled
-            gClient.connect();
+//            gClient.connect();
             locSettingReq = instance.getLocationSettingsRequest();
         }
         instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -747,7 +748,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         dbUsersRef = dbRootRef.child("users");
         dbMessagesRef = dbRootRef.child("messages");
         dbRequestsRef = dbRootRef.child("requests");
-        dbRequestedUsersRef = dbRootRef.child("requested_users");
+        dbRequestedUsersRef = dbRootRef.child("requestedUsers");
         userAuth = FirebaseAuth.getInstance();
         Log.i(TAG, "got instances");
     }
@@ -759,7 +760,10 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 Log.i(TAG, "checking user");
                 if (firebaseAuth.getCurrentUser() == null)
                     startSignInActivity();
-                else userId = firebaseAuth.getCurrentUser().getUid();
+                else {
+                    userId = firebaseAuth.getCurrentUser().getUid();
+                    setFCMToken();
+                }
             }
         };
     }
@@ -1095,10 +1099,12 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                         users.add(snapshot.getValue(User.class));
                 LatLng ll;
                 RequestedUsers reqUsers = new RequestedUsers(requestId, new ArrayList<String>());
+                double tolerance = maxDistanceBetweenLatLngs(route.getPoints());
                 for (int i = 0; i < users.size(); ++i) {
                     ll = new LatLng(users.get(i).getLatitude(),
                             users.get(i).getLongitude());
-                    if(PolyUtil.isLocationOnPath(ll, route.getPoints(), true, 7))
+                    if(PolyUtil.isLocationOnPath(ll, route.getPoints(), true, tolerance) &&
+                            !areLatLngsEqual(ll))
                         reqUsers.getUsersTokens().add(users.get(i).getToken());
                 }
                 dbRequestedUsersRef.push().setValue(reqUsers);
@@ -1109,5 +1115,49 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
             }
         });
+    }
+
+    private void setFCMToken() {
+        if (userId == null)
+            return;
+        String token = getSharedPreferences(FCMToken.SP_NAME, MODE_PRIVATE)
+                .getString(FCMToken.TOKEN, "");
+        if (!token.isEmpty()) {
+            dbUsersRef.child(userId).child("token").setValue(token)
+                    .addOnSuccessListener(new OnSuccessListener<Void>() {
+                @Override
+                public void onSuccess(Void aVoid) {
+                    Log.i(TAG, "token added");
+                }
+            }).addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    Log.i(TAG, "no token added");
+                }
+            });
+        }
+    }
+
+    private boolean areLatLngsEqual(LatLng ll) {
+        if (loc == null)
+            return false;
+        else  {
+            float[] distance = new float[1];
+            Location.distanceBetween(loc.getLatitude(), loc.getLongitude(),
+                    ll.latitude, ll.longitude, distance);
+            return distance[0] != 0f;
+        }
+    }
+
+    private double maxDistanceBetweenLatLngs(List<LatLng> points) {
+        float[] distance = new float[1];
+        double maxDistance = 0.0;
+        for (int i = 0; i < points.size() - 1; ++i) {
+            Location.distanceBetween(points.get(i).latitude, points.get(i).longitude,
+                    points.get(i + 1).latitude, points.get(i).longitude, distance);
+            if (maxDistance < distance[0])
+                maxDistance = distance[0];
+        }
+        return maxDistance;
     }
 }
