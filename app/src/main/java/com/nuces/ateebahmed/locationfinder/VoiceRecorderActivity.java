@@ -91,8 +91,7 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
         swtchRecord.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                if (b)
-                    getRecordingPermission();
+                if (b) startRecording();
                 else stopRecording();
             }
         });
@@ -128,10 +127,120 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
     protected void onResume() {
         super.onResume();
         addAuthStateListener();
-        if (audioRecorder == null)
-            initRecorder();
+        getRecordingPermission();
         localBroadcastManager.registerReceiver(locationReceiver,
                 new IntentFilter(BackgroundLocationService.ACTION));
+    }
+
+    private boolean isRecordingAllowed() {
+        return (ContextCompat.checkSelfPermission(getApplicationContext(),
+                android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) &&
+                (ContextCompat.checkSelfPermission(getApplicationContext(),
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+                        PackageManager.PERMISSION_GRANTED);
+    }
+
+    private void initRecorder() {
+        audioRecorder = new MediaRecorder();
+        audioRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+        audioRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+        audioRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
+    }
+
+    private void getRecordingPermission() {
+        if (!isRecordingAllowed())
+            ActivityCompat.requestPermissions(this, new String[]
+                    {android.Manifest.permission.RECORD_AUDIO,
+                            Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_AUDIO);
+        else if (audioRecorder == null)
+            initRecorder();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case REQUEST_CODE_AUDIO:
+                if (grantResults.length > 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED
+                        && grantResults[1] == PackageManager.PERMISSION_GRANTED)
+                {
+                    Log.i(TAG, "permission granted");
+                    if (audioRecorder == null)
+                        initRecorder();
+                } else {
+                    Log.e(TAG, "permission denied");
+                    Toast.makeText(this, "Allow audio permission to record and send audio messages",
+                            Toast.LENGTH_SHORT).show();
+                    finish();
+                }
+        }
+    }
+
+    private void createDirs() {
+        File mkDir = new File(AUD_DIR_PATH);
+        if (!mkDir.exists()) {
+            if (!mkDir.mkdirs()) {
+                Log.w(TAG, "could not make directories");
+            }
+        }
+    }
+
+    private void uploadAudioToStorage() {
+        audioStorageRef.child(audioFile.getName()).putFile(Uri.fromFile(audioFile))
+                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                    @Override
+                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                        if (taskSnapshot.getDownloadUrl() != null)
+                            if (session.isLoggedIn()) {
+                                Message msg = new Message(session.getSPUsername(),
+                                        location.getLongitude(), location.getLatitude(),
+                                        System.currentTimeMillis());
+                                msg.setAudio(taskSnapshot.getDownloadUrl().toString());
+                                dbMessagesRef.push().setValue(msg);
+
+                                Toast.makeText(VoiceRecorderActivity.this,
+                                        "Thank you! Your response has been recorded",
+                                        Toast.LENGTH_LONG).show();
+                            }
+                    }
+                }).addOnFailureListener(new OnFailureListener() {
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Toast.makeText(VoiceRecorderActivity.this,
+                        "There was a problem in uploading your response!", Toast.LENGTH_LONG).show();
+                Log.e(TAG, e.getMessage());
+            }
+        });
+    }
+
+    private void startRecording() {
+        createDirs();
+        audioFile = new File(AUD_DIR_PATH + "/AUD_" + new SimpleDateFormat("yyyyMMdd_HHmmss")
+                .format(new Date()) + ".3gp");
+        audioRecorder.setOutputFile(audioFile.getAbsolutePath());
+        try {
+            audioRecorder.prepare();
+            audioRecorder.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+            audioRecorder.release();
+        }
+    }
+
+    private void stopRecording() {
+        audioRecorder.stop();
+        audioRecorder.release();
+
+        audioPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+        try {
+            audioPlayer.setDataSource(audioFile.getPath());
+            audioPlayer.prepare();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        btnAudSend.setEnabled(true);
     }
 
     @Override
@@ -152,26 +261,6 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
             audioPlayer.stop();
             audioPlayer.release();
             audioPlayer = null;
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case REQUEST_CODE_AUDIO:
-                if (grantResults.length > 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED
-                        && grantResults[1] == PackageManager.PERMISSION_GRANTED)
-                {
-                    Log.i(TAG, "permission granted");
-                    startRecording();
-                } else {
-                    Log.e(TAG, "permission denied");
-                    Toast.makeText(this, "Allow audio permission to record and send audio messages",
-                            Toast.LENGTH_SHORT).show();
-                    finish();
-                }
         }
     }
 
@@ -242,79 +331,6 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
         });
     }
 
-    private void initRecorder() {
-        audioRecorder = new MediaRecorder();
-        audioRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        audioRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-        audioRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AAC);
-    }
-
-    private void startRecording() {
-        createDirs();
-        audioFile = new File(AUD_DIR_PATH + "/AUD_" + new SimpleDateFormat("yyyyMMdd_HHmmss")
-                .format(new Date()) + ".3gp");
-        audioRecorder.setOutputFile(audioFile.getAbsolutePath());
-        try {
-            audioRecorder.prepare();
-            audioRecorder.start();
-        } catch (IOException e) {
-            e.printStackTrace();
-            audioRecorder.release();
-        }
-    }
-
-    private void stopRecording() {
-        audioRecorder.stop();
-        audioRecorder.release();
-
-        audioPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
-        try {
-            audioPlayer.setDataSource(audioFile.getPath());
-            audioPlayer.prepare();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        btnAudSend.setEnabled(true);
-    }
-
-    private void createDirs() {
-        File mkDir = new File(AUD_DIR_PATH);
-        if (!mkDir.exists()) {
-            if (!mkDir.mkdirs()) {
-                Log.w(TAG, "could not make directories");
-            }
-        }
-    }
-
-    private void uploadAudioToStorage() {
-        audioStorageRef.child(audioFile.getName()).putFile(Uri.fromFile(audioFile))
-                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                    @Override
-                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                        if (taskSnapshot.getDownloadUrl() != null)
-                            if (session.isLoggedIn()) {
-                                Message msg = new Message(session.getSPUsername(),
-                                        location.getLongitude(), location.getLatitude(),
-                                        System.currentTimeMillis());
-                                msg.setAudio(taskSnapshot.getDownloadUrl().toString());
-                                dbMessagesRef.push().setValue(msg);
-
-                                Toast.makeText(VoiceRecorderActivity.this,
-                                        "Thank you! Your response has been recorded",
-                                        Toast.LENGTH_LONG).show();
-                            }
-                    }
-                }).addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                Toast.makeText(VoiceRecorderActivity.this,
-                        "There was a problem in uploading your response!", Toast.LENGTH_LONG).show();
-                Log.e(TAG, e.getMessage());
-            }
-        });
-    }
-
     private void addAuthStateListener() {
         if (userAuthListener == null)
             userAuthListener = getUserAuthState();
@@ -350,21 +366,5 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
                     setLocation((Location) intent.getExtras().get("location"));
             }
         };
-    }
-
-    private boolean isRecordingAllowed() {
-        return (ContextCompat.checkSelfPermission(getApplicationContext(),
-                android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) &&
-                (ContextCompat.checkSelfPermission(getApplicationContext(),
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
-                        PackageManager.PERMISSION_GRANTED);
-    }
-
-    private void getRecordingPermission() {
-        if (!isRecordingAllowed())
-            ActivityCompat.requestPermissions(this, new String[]
-                    {android.Manifest.permission.RECORD_AUDIO,
-                            Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CODE_AUDIO);
-        else startRecording();
     }
 }
