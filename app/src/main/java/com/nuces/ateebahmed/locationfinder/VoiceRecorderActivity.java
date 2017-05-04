@@ -1,6 +1,5 @@
 package com.nuces.ateebahmed.locationfinder;
 
-import android.*;
 import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -20,7 +19,7 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.AppCompatButton;
+import android.support.v7.widget.AppCompatImageButton;
 import android.support.v7.widget.SwitchCompat;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -66,7 +65,7 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
     private Handler handler;
     private MediaController audioController;
     private MediaPlayer audioPlayer;
-    private AppCompatButton btnAudSend;
+    private AppCompatImageButton btnAudSend;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,6 +76,10 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
 
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
         locationReceiver = locationReceiver();
+
+        if (LocationComponentsSingleton.getInstance(getApplicationContext()).isLocationAvailable())
+            location = LocationComponentsSingleton.getInstance(getApplicationContext())
+                    .getLocation();
 
         userAuth = FirebaseAuth.getInstance();
 
@@ -94,7 +97,7 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
             }
         });
 
-        btnAudSend = (AppCompatButton) findViewById(R.id.btnAudSend);
+        btnAudSend = (AppCompatImageButton) findViewById(R.id.btnAudSend);
         btnAudSend.setEnabled(false);
         btnAudSend.setOnClickListener(new View.OnClickListener() {
             @Override

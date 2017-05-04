@@ -54,7 +54,7 @@ public class RegisterActivity extends AppCompatActivity {
                 if (/*isConnected && */firebaseAuth.getCurrentUser() != null) {
                     addValuesInDatabase(firebaseAuth.getCurrentUser());
                     saveNewUserSession(firebaseAuth.getCurrentUser());
-                    finish();
+                    startMapsActivtity();
                 }
             }
         };

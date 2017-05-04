@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -180,7 +181,7 @@ public class BackgroundLocationService extends Service implements LocationListen
     }
 
     private void startLocationUpdate() {
-        if (checkLocationPermission()) {
+        if (checkLocationPermission() && isLocationProviderEnabled()) {
             Log.i(TAG, "starting location updates");
             LocationServices.FusedLocationApi.requestLocationUpdates(gClient, locationRequest, this);
         } else sendLocationRequestSignal();
@@ -258,6 +259,7 @@ public class BackgroundLocationService extends Service implements LocationListen
         dbUserRef.child("latitude").setValue(location.getLatitude());
         dbUserRef.child("longitude").setValue(location.getLongitude());
 
+        instance.setLocation(location);
         Intent i = new Intent(ACTION);
         i.putExtra("location", location);
         localBroadcastManager.sendBroadcast(i);
@@ -322,6 +324,12 @@ public class BackgroundLocationService extends Service implements LocationListen
         }
     }
 
+    private boolean isLocationProviderEnabled() {
+        LocationManager lm = (LocationManager) getApplicationContext()
+                .getSystemService(Context.LOCATION_SERVICE);
+        return lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
+    }
+
     private final class LocationHandler extends Handler {
         public LocationHandler(Looper looper) {
             super(looper);
@@ -341,7 +349,7 @@ public class BackgroundLocationService extends Service implements LocationListen
             if (intent.getBooleanExtra("startlocationupdate", false)) {
                 instance.setLocationPriority(intent.getIntExtra("priority",
                         LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY));
-                gClient.reconnect();
+//                gClient.reconnect();
                 Log.i(TAG, locationRequest.getPriority() + "");
             } else if(intent.getBooleanExtra("stop", false)) {
                 Log.i(TAG, "stopping service");

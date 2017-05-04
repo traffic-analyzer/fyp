@@ -10,6 +10,7 @@ import android.support.annotation.NonNull;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatButton;
+import android.support.v7.widget.AppCompatImageButton;
 import android.support.v7.widget.AppCompatRadioButton;
 import android.util.Log;
 import android.view.View;
@@ -34,7 +35,7 @@ public class TextMessageActivity extends AppCompatActivity {
     private Location location;
     private RadioGroup rdGroup;
     private AppCompatRadioButton rdBlocked, rdSlowPace, rdNormal, rdSpeedy, rdNone;
-    private AppCompatButton btnOptSend;
+    private AppCompatImageButton btnAudSend;
     private FirebaseAuth userAuth;
     private FirebaseAuth.AuthStateListener userAuthListener;
 
@@ -55,8 +56,8 @@ public class TextMessageActivity extends AppCompatActivity {
 
         rdGroup = (RadioGroup) findViewById(R.id.rdGroup);
 
-        btnOptSend = (AppCompatButton) findViewById(R.id.btnOptSend);
-        btnOptSend.setOnClickListener(onButtonPressed());
+        btnAudSend = (AppCompatImageButton) findViewById(R.id.btnAudSend);
+        btnAudSend.setOnClickListener(onButtonPressed());
 
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
         locationReceiver = locationReceiver();
@@ -73,6 +74,9 @@ public class TextMessageActivity extends AppCompatActivity {
         addAuthStateListener();
         localBroadcastManager.registerReceiver(locationReceiver,
                 new IntentFilter(BackgroundLocationService.ACTION));
+        if (LocationComponentsSingleton.getInstance(getApplicationContext()).isLocationAvailable())
+            setLocation(LocationComponentsSingleton.getInstance(getApplicationContext())
+                    .getLocation());
     }
 
     @Override
@@ -88,19 +92,19 @@ public class TextMessageActivity extends AppCompatActivity {
             public void onClick(View view) {
                 switch (rdGroup.getCheckedRadioButtonId()) {
                     case R.id.rdBlocked:
-                        sendMessage((AppCompatRadioButton) view);
+                        sendMessage((AppCompatRadioButton) findViewById(R.id.rdBlocked));
                         break;
                     case R.id.rdSlowPace:
-                        sendMessage((AppCompatRadioButton) view);
+                        sendMessage((AppCompatRadioButton) findViewById(R.id.rdSlowPace));
                         break;
                     case R.id.rdNormal:
-                        sendMessage((AppCompatRadioButton) view);
+                        sendMessage((AppCompatRadioButton) findViewById(R.id.rdNormal));
                         break;
                     case R.id.rdSpeedy:
-                        sendMessage((AppCompatRadioButton) view);
+                        sendMessage((AppCompatRadioButton) findViewById(R.id.rdSpeedy));
                         break;
                     case R.id.rdNone:
-                        sendMessage((AppCompatRadioButton) view);
+                        sendMessage((AppCompatRadioButton) findViewById(R.id.rdNone));
                         break;
                     default:
                         try {

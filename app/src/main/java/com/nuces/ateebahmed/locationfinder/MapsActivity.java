@@ -74,8 +74,6 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.google.firebase.iid.FirebaseInstanceId;
-import com.google.firebase.messaging.RemoteMessage;
 import com.google.maps.DirectionsApi;
 import com.google.maps.GeoApiContext;
 import com.google.maps.RoadsApi;
@@ -90,7 +88,6 @@ import org.joda.time.Instant;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -302,6 +299,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     @Override
     protected void onStart() {
         super.onStart();
+//        changeLocationRequestPriority();
+//        checkLocSettings();
     }
 
     @Override
@@ -313,8 +312,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         attachMessagesListener();
         localBroadcastManager.registerReceiver(locationBroadcastReceiver,
                 new IntentFilter(BackgroundLocationService.ACTION));
-        if (!isLocationProviderEnabled())
-            openLocationDialogue();
         startBackgroundService();
     }
 
@@ -341,13 +338,47 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         removeConnectionListener();
     }
 
+    // Checks location setting and sends back the result
+    protected void checkLocSettings() {
+        if (ContextCompat.checkSelfPermission(getApplicationContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]
+                    {Manifest.permission.ACCESS_FINE_LOCATION}, CHECK_SETTINGS);
+        } else {
+            openLocationDialogue();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case CHECK_SETTINGS:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)
+                    openLocationDialogue();
+                else {
+                    signalServiceToStop();
+                    Toast.makeText(this, "Allow location to send or receive updates",
+                            Toast.LENGTH_LONG).show();
+                }
+                break;
+        }
+    }
+
+    private void openLocationDialogue() {
+        if (instance.getLocationRequest().getPriority() != LocationRequest.PRIORITY_HIGH_ACCURACY)
+            instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        PendingResult<LocationSettingsResult> res = LocationServices.SettingsApi
+                .checkLocationSettings(gClient, locSettingReq);
+        res.setResultCallback(this);
+    }
+
     @Override
     public void onResult(@NonNull LocationSettingsResult locationSettingsResult) {
         final Status status = locationSettingsResult.getStatus();
         switch (status.getStatusCode()) {
             case LocationSettingsStatusCodes.SUCCESS:
                 sendLocationUpdateSignal(LocationRequest.PRIORITY_HIGH_ACCURACY);
-                Toast.makeText(this, "Location enabled", Toast.LENGTH_SHORT).show();
                 break;
             case LocationSettingsStatusCodes.RESOLUTION_REQUIRED:
                 try {
@@ -358,7 +389,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 break;
             case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
                 signalServiceToStop();
-                Log.e(TAG, "Location settings cannot be done");
                 Toast.makeText(this, "Enable Location in Setttings", Toast.LENGTH_LONG).show();
                 break;
         }
@@ -366,16 +396,17 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        switch (resultCode) {
-            case Activity.RESULT_OK:
+        if (requestCode == ENABLE_LOCATION)
+            switch (resultCode) {
+                case Activity.RESULT_OK:
                     sendLocationUpdateSignal(LocationRequest.PRIORITY_HIGH_ACCURACY);
-                    Log.i(TAG, "activity result okay");
-                break;
-            case Activity.RESULT_CANCELED:
+                    break;
+                case Activity.RESULT_CANCELED:
+                    Toast.makeText(getApplicationContext(),
+                            "Enable location to send or receive updates", Toast.LENGTH_SHORT).show();
                     signalServiceToStop();
-                    Log.e(TAG, "activity result cancelled");
-                break;
-        }
+                    break;
+            }
     }
 
     @Override
@@ -415,24 +446,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case CHECK_SETTINGS:
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)
-                {
-                    Log.i(TAG, "rechecking permission");
-                    checkLocSettings();
-                } else {
-                    signalServiceToStop();
-                    Toast.makeText(this, "Allow location to send or receive updates",
-                            Toast.LENGTH_LONG).show();
-                }
-                break;
         }
     }
 
@@ -611,27 +624,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         return (beforeFiveMin <= timestamp);
     }*/
 
-    // Checks location setting and sends back the result
-    protected void checkLocSettings() {
-        if (ContextCompat.checkSelfPermission(getApplicationContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Log.i(TAG, "asking permission");
-            ActivityCompat.requestPermissions(this, new String[]
-                    {Manifest.permission.ACCESS_FINE_LOCATION}, CHECK_SETTINGS);
-        } else {
-            Log.i(TAG, "checking gps");
-            openLocationDialogue();
-        }
-    }
-
-    private void openLocationDialogue() {
-        if (instance.getLocationRequest().getPriority() != LocationRequest.PRIORITY_HIGH_ACCURACY)
-            instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        PendingResult<LocationSettingsResult> res = LocationServices.SettingsApi
-                .checkLocationSettings(gClient, locSettingReq);
-        res.setResultCallback(this);
-    }
-
     private void animateBtnAddContent() {
         if (isBtnTapped) {
             isBtnTapped = false;
@@ -685,7 +677,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 //            gClient.connect();
             locSettingReq = instance.getLocationSettingsRequest();
         }
-        instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        changeLocationRequestPriority();
     }
 
     private void sendLocationUpdateSignal(int priority) {
@@ -752,7 +744,7 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         dbRequestsRef = dbRootRef.child("requests");
         dbRequestedUsersRef = dbRootRef.child("requestedUsers");
         userAuth = FirebaseAuth.getInstance();
-        Log.i(TAG, "got instances");
+        Log.i(TAG, "got database instances");
     }
 
     private FirebaseAuth.AuthStateListener getUserVerified() {
@@ -768,12 +760,6 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
                 }
             }
         };
-    }
-
-    private boolean isLocationProviderEnabled() {
-        LocationManager lm = (LocationManager) getApplicationContext()
-                .getSystemService(Context.LOCATION_SERVICE);
-        return lm.isProviderEnabled(LocationManager.GPS_PROVIDER);
     }
 
     private void setLocation(Location location) {
@@ -1169,5 +1155,9 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
             for (String key: intent.getExtras().keySet())
                 Log.i(TAG, key);
         }
+    }
+
+    private void changeLocationRequestPriority() {
+        instance.setLocationPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
     }
 }

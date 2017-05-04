@@ -48,7 +48,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:src="@drawable/newsend"
-        android:background="none"
         android:layout_marginTop="0dp"
         android:layout_marginBottom="@dimen/activity_horizontal_margin"
         android:layout_marginLeft="@dimen/material_design_button_margin"

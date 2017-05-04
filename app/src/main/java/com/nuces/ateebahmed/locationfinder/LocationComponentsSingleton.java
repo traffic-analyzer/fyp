@@ -1,6 +1,7 @@
 package com.nuces.ateebahmed.locationfinder;
 
 import android.content.Context;
+import android.location.Location;
 import android.util.Log;
 
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -22,6 +23,7 @@ public class LocationComponentsSingleton {
     private Context context;
     private static final long FASTEST_INTERVAL_UPDATE = 5000, INTERVAL_UPDATE = 30000;
     private GoogleApiClient googleApiClient;
+    private Location location;
     private LocationRequest locationRequest;
     private LocationSettingsRequest locationSettingsRequest;
     private static final LatLng SOUTH_WEST = new LatLng(24.747001, 66.640322),
@@ -33,6 +35,7 @@ public class LocationComponentsSingleton {
 
     private LocationComponentsSingleton(Context c) {
         context = c;
+        location = null;
         buildGoogleClient();
         buildLocationRequest();
         buildLocationSettings();
@@ -59,7 +62,7 @@ public class LocationComponentsSingleton {
                 .addLocationRequest(locationRequest).setAlwaysShow(true).build();
     }
 
-    public synchronized void setLocationPriority(int priority) {
+    public void setLocationPriority(int priority) {
         if (locationRequest != null)
             locationRequest.setPriority(priority);
         else Log.e(TAG, "initialize location request first");
@@ -76,4 +79,12 @@ public class LocationComponentsSingleton {
     public LocationSettingsRequest getLocationSettingsRequest() {
         return locationSettingsRequest;
     }
+
+    public Location getLocation() {
+        return location;
+    }
+
+    public void setLocation(Location loc) { location = loc; }
+
+    public boolean isLocationAvailable() { return location != null; }
 }

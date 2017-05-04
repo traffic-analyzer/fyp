@@ -41,7 +41,6 @@ public class SignInActivity extends AppCompatActivity {
     private User mUser;
     private boolean isConnected;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -68,6 +67,7 @@ public class SignInActivity extends AppCompatActivity {
             public void onClick(View widget) {
                 Intent register = new Intent(SignInActivity.this, RegisterActivity.class);
                 startActivity(register);
+                finish();
             }
         };
         span.setSpan(clickableSpan, 0, span.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
