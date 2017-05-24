@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <android.support.v7.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/activity_text_message"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:paddingBottom="@dimen/activity_vertical_margin"
-    android:paddingLeft="@dimen/activity_horizontal_margin"
-    android:paddingRight="@dimen/activity_horizontal_margin"
-    android:paddingTop="30dp"
     android:orientation="vertical"
     android:background="@color/colorPrimary"
     tools:context="com.nuces.ateebahmed.locationfinder.TextMessageActivity">
-    <!--android:paddingTop="@dimen/activity_vertical_margin"-->
+
+    <include layout="@layout/layout_basic_toolbar" />
 
     <android.support.v7.widget.AppCompatTextView
         android:layout_width="match_parent"
@@ -19,8 +17,8 @@
         android:id="@+id/txtQuestion"
         android:text="@string/strQuestion"
         android:textSize="@dimen/material_design_text_size_headline"
-        android:layout_marginBottom="@dimen/activity_horizontal_margin"
-        android:textColor="@android:color/black"
+        android:layout_margin="@dimen/activity_horizontal_margin"
+        android:textColor="@color/colorTextPrimary"
         android:textAlignment="center"
         android:textStyle="normal|bold" />
 
@@ -30,152 +28,22 @@
         android:layout_height="80dp"
         android:src="@drawable/carss"
         android:layout_gravity="center"
-        android:layout_marginTop="10dp"
+        android:layout_margin="@dimen/activity_vertical_margin"
         android:adjustViewBounds="true"
         android:scaleType="fitCenter" />
 
-
-    <android.support.v7.widget.AppCompatTextView
+    <android.support.v7.widget.ListViewCompat
+        android:id="@+id/lvSituation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/strSituation"
-        android:textColor="#000"
-        android:textSize="17sp"
+        android:paddingTop="@dimen/material_design_button_margin"
         android:paddingLeft="@dimen/material_design_horizontal_padding"
+        android:paddingStart="@dimen/material_design_horizontal_padding"
         android:paddingRight="@dimen/material_design_horizontal_padding"
         android:paddingEnd="@dimen/material_design_horizontal_padding"
-        android:paddingStart="@dimen/material_design_horizontal_padding"
-        android:paddingBottom="10dp"
-        android:paddingTop="@dimen/material_design_list_vertical_padding"
-        android:fontFamily="serif"
-        android:textStyle="normal|bold" />
-    <!--android:paddingBottom="@dimen/material_design_list_vertical_padding"-->
-
-
-    <RadioGroup
-        android:id="@+id/rdGroup"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/colorPrimaryLight"
-        android:paddingTop="5dp"
-        >
-
-        <android.support.v7.widget.AppCompatRadioButton
-            android:id="@+id/rdBlocked"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="@string/strBlocked"
-            android:textSize="@dimen/material_design_text_size_sub_heading"
-            android:paddingLeft="@dimen/material_design_horizontal_padding"
-            android:paddingRight="@dimen/material_design_horizontal_padding"
-            android:paddingEnd="@dimen/material_design_horizontal_padding"
-            android:paddingBottom="@dimen/material_design_list_vertical_padding"
-            android:height="@dimen/material_design_list_height"
-            />
-        <!--android:paddingTop="@dimen/material_design_list_vertical_padding"-->
-        <!--android:layout_toLeftOf="@id/heavyy"-->
-
-
-
-        <android.support.v7.widget.AppCompatRadioButton
-            android:id="@+id/rdSlowPace"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/strSlow"
-            android:textSize="@dimen/material_design_text_size_sub_heading"
-            android:paddingLeft="@dimen/material_design_horizontal_padding"
-            android:paddingRight="@dimen/material_design_horizontal_padding"
-            android:paddingStart="@dimen/material_design_horizontal_padding"
-            android:paddingEnd="@dimen/material_design_horizontal_padding"
-            android:paddingTop="@dimen/material_design_list_vertical_padding"
-            android:paddingBottom="@dimen/material_design_list_vertical_padding"
-            android:height="@dimen/material_design_list_height" />
-
-        <android.support.v7.widget.AppCompatRadioButton
-            android:id="@+id/rdNormal"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/strNormal"
-            android:textSize="@dimen/material_design_text_size_sub_heading"
-            android:paddingLeft="@dimen/material_design_horizontal_padding"
-            android:paddingRight="@dimen/material_design_horizontal_padding"
-            android:paddingStart="@dimen/material_design_horizontal_padding"
-            android:paddingEnd="@dimen/material_design_horizontal_padding"
-            android:paddingTop="@dimen/material_design_list_vertical_padding"
-            android:paddingBottom="@dimen/material_design_list_vertical_padding"
-            android:height="@dimen/material_design_list_height" />
-
-        <android.support.v7.widget.AppCompatRadioButton
-            android:id="@+id/rdSpeedy"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/strLow"
-            android:textSize="@dimen/material_design_text_size_sub_heading"
-            android:paddingLeft="@dimen/material_design_horizontal_padding"
-            android:paddingRight="@dimen/material_design_horizontal_padding"
-            android:paddingStart="@dimen/material_design_horizontal_padding"
-            android:paddingEnd="@dimen/material_design_horizontal_padding"
-            android:paddingTop="@dimen/material_design_list_vertical_padding"
-            android:paddingBottom="@dimen/material_design_list_vertical_padding"
-            android:height="@dimen/material_design_list_height" />
-
-        <android.support.v7.widget.AppCompatRadioButton
-            android:id="@+id/rdNone"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/strNone"
-            android:textSize="@dimen/material_design_text_size_sub_heading"
-            android:paddingLeft="@dimen/material_design_horizontal_padding"
-            android:paddingRight="@dimen/material_design_horizontal_padding"
-            android:paddingStart="@dimen/material_design_horizontal_padding"
-            android:paddingEnd="@dimen/material_design_horizontal_padding"
-            android:paddingTop="@dimen/material_design_list_vertical_padding"
-            android:paddingBottom="@dimen/material_design_list_vertical_padding"
-            android:height="@dimen/material_design_list_height" />
-
-        <!--</RadioGroup>-->
-
-        <!--<android.support.v7.widget.AppCompatButton-->
-        <!--android:id="@+id/btnOptSend"-->
-        <!--android:layout_width="match_parent"-->
-        <!--android:layout_height="wrap_content"-->
-        <!--android:text="@string/btnSend"-->
-        <!--android:layout_marginTop="@dimen/activity_horizontal_margin"-->
-        <!--android:layout_marginBottom="@dimen/activity_horizontal_margin"-->
-        <!--android:layout_marginLeft="@dimen/material_design_button_margin"-->
-        <!--android:layout_marginRight="@dimen/material_design_button_margin"-->
-        <!--android:layout_marginEnd="@dimen/material_design_button_margin"-->
-        <!--android:layout_marginStart="@dimen/material_design_button_margin"-->
-        <!--android:paddingLeft="@dimen/material_design_button_padding"-->
-        <!--android:paddingRight="@dimen/material_design_button_padding"-->
-        <!--android:paddingStart="@dimen/material_design_button_padding"-->
-        <!--android:paddingEnd="@dimen/material_design_button_padding"-->
-        <!--android:height="@dimen/material_design_button_height"-->
-        <!--android:minWidth="@dimen/material_design_button_min_width" />-->
-
-    </RadioGroup>
-
-    <android.support.v7.widget.AppCompatImageButton
-        android:id="@+id/btnAudSend"
-        android:text="@string/btnSend"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:src="@drawable/newsend"
-        android:layout_marginTop="0dp"
-        android:layout_marginBottom="@dimen/activity_horizontal_margin"
-        android:layout_marginLeft="@dimen/material_design_button_margin"
-        android:layout_marginRight="@dimen/material_design_button_margin"
-        android:layout_marginEnd="@dimen/material_design_button_margin"
-        android:layout_marginStart="@dimen/material_design_button_margin"
-        android:paddingLeft="@dimen/material_design_button_padding"
-        android:paddingRight="@dimen/material_design_button_padding"
-        android:paddingStart="@dimen/material_design_button_padding"
-        android:paddingEnd="@dimen/material_design_button_padding"
-        android:height="@dimen/material_design_button_height"
-        android:minWidth="@dimen/material_design_button_min_width"
-        android:adjustViewBounds="true"
-        android:scaleType="fitCenter"
-        android:padding="50dp"/>
+        android:divider="@color/colorTextSecondary"
+        android:dividerHeight="1px"
+        android:minHeight="@dimen/material_design_list_height"
+        android:listSelector="@android:color/transparent"/>
 
 </android.support.v7.widget.LinearLayoutCompat>

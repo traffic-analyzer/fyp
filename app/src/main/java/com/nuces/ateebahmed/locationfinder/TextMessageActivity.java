@@ -4,18 +4,27 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.TypedArray;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v4.content.LocalBroadcastManager;
+import android.support.v4.content.res.TypedArrayUtils;
+import android.support.v4.widget.TextViewCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatButton;
 import android.support.v7.widget.AppCompatImageButton;
 import android.support.v7.widget.AppCompatRadioButton;
+import android.support.v7.widget.AppCompatTextView;
+import android.support.v7.widget.LinearLayoutCompat;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ListView;
 import android.widget.RadioGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.firebase.auth.FirebaseAuth;
@@ -33,9 +42,6 @@ public class TextMessageActivity extends AppCompatActivity {
     private DatabaseReference dbMessagesRef;
     private UserSession session;
     private Location location;
-    private RadioGroup rdGroup;
-    private AppCompatRadioButton rdBlocked, rdSlowPace, rdNormal, rdSpeedy, rdNone;
-    private AppCompatImageButton btnAudSend;
     private FirebaseAuth userAuth;
     private FirebaseAuth.AuthStateListener userAuthListener;
 
@@ -44,20 +50,24 @@ public class TextMessageActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_text_message);
 
-        rdBlocked = (AppCompatRadioButton) findViewById(R.id.rdBlocked);
+        String[] trafficSituation = getResources().getStringArray(R.array.traffic_situation);
+        TypedArray icons = getResources().obtainTypedArray(R.array.icons);
 
-        rdNormal = (AppCompatRadioButton) findViewById(R.id.rdNormal);
+        ListView lvSituation = (ListView) findViewById(R.id.lvSituation);
 
-        rdSlowPace = (AppCompatRadioButton) findViewById(R.id.rdSlowPace);
+        TrafficSituationListAdapter listAdapter =
+                new TrafficSituationListAdapter(getApplicationContext(), trafficSituation, icons);
 
-        rdSpeedy = (AppCompatRadioButton) findViewById(R.id.rdSpeedy);
-
-        rdNone = (AppCompatRadioButton) findViewById(R.id.rdNone);
-
-        rdGroup = (RadioGroup) findViewById(R.id.rdGroup);
-
-        btnAudSend = (AppCompatImageButton) findViewById(R.id.btnAudSend);
-        btnAudSend.setOnClickListener(onButtonPressed());
+        lvSituation.setAdapter(listAdapter);
+        lvSituation.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                Toast.makeText(getApplicationContext(), ((AppCompatTextView)((LinearLayoutCompat)
+                        view).getChildAt(1)).getText().toString(), Toast.LENGTH_SHORT).show();
+                /*sendMessage((((AppCompatTextView) ((LinearLayoutCompat) view)
+                        .getChildAt(1)).getText().toString()));*/
+            }
+        });
 
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
         locationReceiver = locationReceiver();
@@ -86,45 +96,9 @@ public class TextMessageActivity extends AppCompatActivity {
         removeAuthStateListener();
     }
 
-    private View.OnClickListener onButtonPressed() {
-        return new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                switch (rdGroup.getCheckedRadioButtonId()) {
-                    case R.id.rdBlocked:
-                        sendMessage((AppCompatRadioButton) findViewById(R.id.rdBlocked));
-                        break;
-                    case R.id.rdSlowPace:
-                        sendMessage((AppCompatRadioButton) findViewById(R.id.rdSlowPace));
-                        break;
-                    case R.id.rdNormal:
-                        sendMessage((AppCompatRadioButton) findViewById(R.id.rdNormal));
-                        break;
-                    case R.id.rdSpeedy:
-                        sendMessage((AppCompatRadioButton) findViewById(R.id.rdSpeedy));
-                        break;
-                    case R.id.rdNone:
-                        sendMessage((AppCompatRadioButton) findViewById(R.id.rdNone));
-                        break;
-                    default:
-                        try {
-                            throw new Exception("Undefined button id");
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                        break;
-                }
-            }
-        };
-    }
-
-    private void showButtonToast(Button b) {
-        Toast.makeText(this, b.getText().toString() + " was pressed", Toast.LENGTH_SHORT).show();
-    }
-
-    private void sendMessage(AppCompatRadioButton b) {
+    private void sendMessage(String b) {
         if (location != null && session != null) {
-            Message msg = new Message(b.getText().toString(), session.getSPUsername(),
+            Message msg = new Message(b, session.getSPUsername(),
                     location.getLongitude(), location.getLatitude(), System.currentTimeMillis());
             dbMessagesRef.push().setValue(msg, new DatabaseReference.CompletionListener() {
                 @Override

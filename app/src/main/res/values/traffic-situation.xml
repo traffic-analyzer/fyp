@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="traffic_situation">
+        <item>Blocked</item>
+        <item>Slow Pace</item>
+        <item>Normal</item>
+        <item>Speedy</item>
+        <item>No Traffic</item>
+    </string-array>
+</resources>

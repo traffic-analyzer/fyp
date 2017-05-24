@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="icons">
+        <item>@drawable/blocked</item>
+        <item>@drawable/slow_pace</item>
+        <item>@drawable/normal</item>
+        <item>@drawable/speedy</item>
+        <item>@drawable/no_traffic</item>
+    </array>
+</resources>

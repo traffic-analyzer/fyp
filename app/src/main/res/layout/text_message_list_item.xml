@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.v7.widget.LinearLayoutCompat
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:gravity="center_vertical"
+    android:paddingTop="@dimen/material_design_button_margin"
+    android:paddingBottom="@dimen/material_design_button_margin"
+    android:background="?android:attr/selectableItemBackground">
+
+    <android.support.v7.widget.AppCompatImageView
+        android:id="@+id/ivIconListView"
+        android:layout_width="@dimen/material_design_list_view_icon_size"
+        android:layout_height="@dimen/material_design_list_view_icon_size"/>
+
+    <android.support.v7.widget.AppCompatTextView
+        android:id="@+id/tvTextListItem"
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:textSize="@dimen/material_design_text_size_sub_heading"
+        android:textStyle="bold"
+        android:textColor="@color/colorTextSecondary"
+        android:layout_marginLeft="@dimen/material_design_list_single_line_min_height"
+        android:layout_marginStart="@dimen/material_design_list_single_line_min_height"
+        android:textAppearance="@style/TextAppearance.AppCompat.Body2"
+        android:gravity="center_vertical"/>
+
+</android.support.v7.widget.LinearLayoutCompat>

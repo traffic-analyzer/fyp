@@ -22,4 +22,9 @@
     <dimen name="camera_button_margin">36dp</dimen>
     <dimen name="fab_margin">16dp</dimen>
     <dimen name="material_design_align_mini_fab_with_fab">24dp</dimen>
+    <dimen name="material_design_text_size_display2">45sp</dimen>
+    <dimen name="material_design_text_size_display3">56sp</dimen>
+    <dimen name="material_design_list_single_line_min_height">56dp</dimen>
+    <dimen name="image_view_button_margin">96dp</dimen>
+    <dimen name="material_design_list_view_icon_size">40dp</dimen>
 </resources>

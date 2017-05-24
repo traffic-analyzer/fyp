@@ -12,6 +12,7 @@ import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Environment;
 import android.os.Handler;
 import android.support.annotation.NonNull;
@@ -20,6 +21,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.AppCompatImageButton;
+import android.support.v7.widget.AppCompatTextView;
 import android.support.v7.widget.SwitchCompat;
 import android.util.Log;
 import android.view.KeyEvent;
@@ -55,7 +57,6 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
     private DatabaseReference dbMessagesRef;
     private UserSession session;
     private Location location;
-    private SwitchCompat swtchRecord;
     private final int REQUEST_CODE_AUDIO = 3;
     private MediaRecorder audioRecorder;
     private File audioFile;
@@ -65,7 +66,10 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
     private Handler handler;
     private MediaController audioController;
     private MediaPlayer audioPlayer;
-    private AppCompatImageButton btnAudSend;
+    private AppCompatImageButton btnAudSend, btnVoiceRecord;
+    private AppCompatTextView timer;
+    private boolean isRecording;
+    private CountDownTimer clockTimer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,6 +77,8 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
         setContentView(R.layout.activity_voice_recorder);
 
         handler = new Handler();
+
+        isRecording = false;
 
         localBroadcastManager = LocalBroadcastManager.getInstance(this);
         locationReceiver = locationReceiver();
@@ -86,24 +92,29 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
         dbMessagesRef = FirebaseDatabase.getInstance().getReference().child("messages");
         audioStorageRef = FirebaseStorage.getInstance().getReference().child("audio");
 
-        swtchRecord = (SwitchCompat) findViewById(R.id.swtchRecord);
-
-        swtchRecord.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                if (b) startRecording();
-                else stopRecording();
-            }
-        });
-
         btnAudSend = (AppCompatImageButton) findViewById(R.id.btnAudSend);
         btnAudSend.setEnabled(false);
         btnAudSend.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                uploadAudioToStorage();
+//                uploadAudioToStorage();
             }
         });
+
+        btnVoiceRecord = (AppCompatImageButton) findViewById(R.id.btnVoiceRecord);
+        btnVoiceRecord.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (!isRecording)
+                    startRecording();
+                else {
+                    clockTimer.cancel();
+                    stopRecording();
+                }
+            }
+        });
+
+        timer = (AppCompatTextView) findViewById(R.id.timer);
 
         audioPlayer = new MediaPlayer();
         audioPlayer.setOnPreparedListener(this);
@@ -222,6 +233,22 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
         try {
             audioRecorder.prepare();
             audioRecorder.start();
+            isRecording = true;
+            btnVoiceRecord.setImageResource(R.drawable.mic_recording);
+            clockTimer = new CountDownTimer(30000, 1000) {
+                @Override
+                public void onTick(long l) {
+                    long sec = l / 1000;
+                    if (sec < 10) timer.setText("00:0" + String.valueOf(l/1000));
+                    else timer.setText("00:" + String.valueOf(l/1000));
+                }
+
+                @Override
+                public void onFinish() {
+                    timer.setText("00:00");
+                    stopRecording();
+                }
+            }.start();
         } catch (IOException e) {
             e.printStackTrace();
             audioRecorder.release();
@@ -229,6 +256,8 @@ public class VoiceRecorderActivity extends AppCompatActivity implements
     }
 
     private void stopRecording() {
+        isRecording = false;
+        btnVoiceRecord.setImageResource(R.drawable.micc);
         audioRecorder.stop();
         audioRecorder.release();
 

@@ -377,7 +377,7 @@ public class CameraActivity extends AppCompatActivity implements SensorEventList
         videoRecorder.setVideoSource(MediaRecorder.VideoSource.DEFAULT);
         videoRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
         videoRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.MPEG_4_SP);
-        videoRecorder.setMaxDuration(30000);
+        videoRecorder.setMaxDuration(10000);
     }
 
     private void prepareRecorder() {

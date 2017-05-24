@@ -1,38 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<android.support.v7.widget.LinearLayoutCompat
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<android.support.v7.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/layoutAudio"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/colorPrimary"
-    android:paddingTop="50dp"
     tools:context="com.nuces.ateebahmed.locationfinder.VoiceRecorderActivity"
     android:orientation="vertical">
 
-    <android.support.v7.widget.AppCompatImageView
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:src="@drawable/micc"
-        android:id="@+id/imageView4"
-        android:layout_gravity="center"
-        android:layout_alignParentTop="true"
-        android:layout_centerHorizontal="true"
-        android:adjustViewBounds="true"
-        android:scaleType="fitCenter"
-        android:padding="20dp"/>
+    <include layout="@layout/layout_basic_toolbar" />
 
     <android.support.v7.widget.AppCompatTextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:id="@+id/txtRecord"
-        android:text="Record Voice Updates"
+        android:text="@string/strVoiceUpdate"
         android:textSize="@dimen/material_design_text_size_headline"
-        android:gravity="center"
-        android:textColor="@android:color/black"
-        android:layout_marginTop="@dimen/activity_horizontal_margin"
-        android:layout_marginBottom="@dimen/activity_horizontal_margin" />
+        android:textAlignment="center"
+        android:textColor="@color/colorTextPrimary"
+        android:textStyle="bold"
+        android:layout_margin="@dimen/activity_vertical_margin"/>
+
+    <android.support.v7.widget.AppCompatTextView
+        android:id="@+id/timer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/colorTextSecondary"
+        android:textSize="@dimen/material_design_text_size_display2"
+        android:text="@string/strAudioTimer"
+        android:textAlignment="center"/>
+
+    <android.support.v7.widget.AppCompatImageButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/micc"
+        android:id="@+id/btnVoiceRecord"
+        android:layout_gravity="center"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:layout_margin="@dimen/activity_horizontal_margin"/>
 
     <android.support.v7.widget.SwitchCompat
         android:id="@+id/swtchRecord"
@@ -40,34 +45,23 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_marginBottom="15dp"
-        android:layout_marginTop="5dp"/>
-
-    <android.support.v7.widget.AppCompatImageButton
-        android:id="@+id/btnAudSend"
-        android:text="@string/btnSend"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:src="@drawable/newsend"
-        android:layout_marginTop="0dp"
-        android:layout_marginBottom="@dimen/activity_horizontal_margin"
-        android:layout_marginLeft="@dimen/material_design_button_margin"
-        android:layout_marginRight="@dimen/material_design_button_margin"
-        android:layout_marginEnd="@dimen/material_design_button_margin"
-        android:layout_marginStart="@dimen/material_design_button_margin"
-        android:paddingLeft="@dimen/material_design_button_padding"
-        android:paddingRight="@dimen/material_design_button_padding"
-        android:paddingStart="@dimen/material_design_button_padding"
-        android:paddingEnd="@dimen/material_design_button_padding"
-        android:height="@dimen/material_design_button_height"
-        android:minWidth="@dimen/material_design_button_min_width"
-        android:adjustViewBounds="true"
-        android:scaleType="fitCenter"
-        android:padding="65dp"/>
-
+        android:layout_marginTop="5dp"
+        android:visibility="gone"/>
 
     <android.support.v7.widget.LinearLayoutCompat
         android:id="@+id/audioController"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/activity_horizontal_margin"/>
+
+    <android.support.v7.widget.AppCompatImageButton
+        android:id="@+id/btnAudSend"
+        android:text="@string/btnSend"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/newsend"
+        android:layout_gravity="center"
+        android:scaleType="fitCenter"
+        android:background="?attr/selectableItemBackgroundBorderless" />
 
 </android.support.v7.widget.LinearLayoutCompat>

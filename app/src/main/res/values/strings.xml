@@ -34,7 +34,7 @@
     <string name="strNormal">Normal</string>
     <string name="strLow">Speedy</string>
     <string name="strNone">No Traffic</string>
-    <string name="strQuestion">How is traffic situation ahead?</string>
+    <string name="strQuestion">How is traffic ahead?</string>
     <string name="btnCapture">Capture</string>
     <string name="btnFlash">flash</string>
     <string name="btnRecord">Record</string>
@@ -43,4 +43,8 @@
     <string name="txtRequired">All fields are required!</string>
     <string name="strSituation">Situation</string>
     <string name="title_activity_search_places">SearchPlacesActivity</string>
+    <string name="tvDrivezy">DriveZy</string>
+    <string name="tvsignUp">Sign up</string>
+    <string name="strVoiceUpdate">Send a voice update</string>
+    <string name="strAudioTimer">00:30</string>
 </resources>
